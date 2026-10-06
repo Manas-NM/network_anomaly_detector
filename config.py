@@ -5,6 +5,10 @@ Every tunable value (detection thresholds, blacklists, file paths, ML
 hyper-parameters, dashboard settings) lives here so that the rest of the
 code base never relies on "magic numbers".
 
+The module also defines ``COLUMN_MAPPING`` / ``DATASET_PROFILES`` (column
+presets for public IDS datasets such as CICIDS2017 and UNSW-NB15) and
+``PROTOCOL_NUMBER_MAP`` (IANA protocol number -> name).
+
 The configuration is expressed as a set of frozen dataclasses grouped under a
 single :class:`AppConfig` object. Import the ready-made ``CONFIG`` instance for
 default behaviour, or build a customised copy with :func:`dataclasses.replace`::
@@ -19,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, Mapping, Optional, Tuple
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -85,6 +89,225 @@ class SchemaConfig:
     def column_map(self) -> dict:
         """Mapping of CSV header -> internal column name."""
         return dict(zip(self.csv_headers, self.internal_columns))
+
+
+# --------------------------------------------------------------------------- #
+# External dataset support: COLUMN_MAPPING
+# --------------------------------------------------------------------------- #
+# Public IDS datasets name their columns differently from this tool. Each preset
+# below maps *source column name* -> *canonical field name*. Source names are
+# matched case-insensitively once leading/trailing whitespace is stripped, so
+# " Source IP" (CICIDS2017 puts a leading space on most headers) matches
+# "Source IP" and "source ip". A preset may list several aliases for the same
+# field; the first one present in the file wins.
+#
+# Canonical field names (left) and the internal DataFrame columns they become
+# (right):
+#     timestamp        -> timestamp
+#     source_ip        -> src_ip
+#     destination_ip   -> dst_ip
+#     source_port      -> src_port
+#     destination_port -> dst_port
+#     protocol         -> protocol
+#     packet_length    -> packet_length
+CANONICAL_TO_INTERNAL: Dict[str, str] = {
+    "timestamp": "timestamp",
+    "source_ip": "src_ip",
+    "destination_ip": "dst_ip",
+    "source_port": "src_port",
+    "destination_port": "dst_port",
+    "protocol": "protocol",
+    "packet_length": "packet_length",
+}
+
+COLUMN_MAPPING: Dict[str, Dict[str, str]] = {
+    # CICIDS2017 ("GeneratedLabelledFlows" / "TrafficLabelling" CSVs) and
+    # CSE-CIC-IDS2018 (CICFlowMeter output). Each row is one bidirectional flow;
+    # packet_length is the total forward payload of the flow in bytes.
+    "cicids": {
+        " Timestamp": "timestamp",
+        " Source IP": "source_ip",
+        " Destination IP": "destination_ip",
+        " Source Port": "source_port",
+        " Destination Port": "destination_port",
+        " Protocol": "protocol",
+        " Total Length of Fwd Packets": "packet_length",
+        # CSE-CIC-IDS2018 abbreviated header names (CICFlowMeter-V3).
+        "Src IP": "source_ip",
+        "Dst IP": "destination_ip",
+        "Src Port": "source_port",
+        "Dst Port": "destination_port",
+        "TotLen Fwd Pkts": "packet_length",
+    },
+    # UNSW-NB15 (UNSW-NB15_1.csv ... UNSW-NB15_4.csv). "stime" is the flow start
+    # time as Unix epoch seconds; packet_length is source->destination bytes.
+    "unsw": {
+        "stime": "timestamp",
+        "srcip": "source_ip",
+        "dstip": "destination_ip",
+        "sport": "source_port",
+        "dsport": "destination_port",
+        "proto": "protocol",
+        "sbytes": "packet_length",
+    },
+    # User-supplied mapping, e.g.
+    #     LogParser(dataset_profile="custom",
+    #               column_mapping={"ts": "timestamp", "src": "source_ip", ...})
+    # or pass the dict directly: LogParser(dataset_profile={"ts": "timestamp", ...})
+    "custom": {},
+}
+
+#: IANA IP protocol numbers -> names. Used to convert numeric "Protocol" values
+#: (CICIDS stores 6/17/0) into the names used by this tool.
+PROTOCOL_NUMBER_MAP: Dict[int, str] = {
+    0: "HOPOPT",
+    1: "ICMP",
+    2: "IGMP",
+    3: "GGP",
+    4: "IPV4",       # IP-in-IP encapsulation
+    6: "TCP",
+    8: "EGP",
+    9: "IGP",
+    17: "UDP",
+    27: "RDP-PROTO",  # Reliable Data Protocol (not Remote Desktop)
+    41: "IPV6",
+    43: "IPV6-ROUTE",
+    44: "IPV6-FRAG",
+    46: "RSVP",
+    47: "GRE",
+    50: "ESP",
+    51: "AH",
+    58: "IPV6-ICMP",
+    59: "IPV6-NONXT",
+    60: "IPV6-OPTS",
+    88: "EIGRP",
+    89: "OSPF",
+    103: "PIM",
+    112: "VRRP",
+    115: "L2TP",
+    132: "SCTP",
+    136: "UDPLITE",
+    137: "MPLS-IN-IP",
+}
+
+#: Column layout of the *headerless* UNSW-NB15_1..4.csv files (from
+#: NUSW-NB15_features.csv). Used when such a file is detected.
+UNSW_NB15_COLUMNS: Tuple[str, ...] = (
+    "srcip", "sport", "dstip", "dsport", "proto", "state", "dur", "sbytes", "dbytes",
+    "sttl", "dttl", "sloss", "dloss", "service", "Sload", "Dload", "Spkts", "Dpkts",
+    "swin", "dwin", "stcpb", "dtcpb", "smeansz", "dmeansz", "trans_depth",
+    "res_bdy_len", "Sjit", "Djit", "Stime", "Ltime", "Sintpkt", "Dintpkt", "tcprtt",
+    "synack", "ackdat", "is_sm_ips_ports", "ct_state_ttl", "ct_flw_http_mthd",
+    "is_ftp_login", "ct_ftp_cmd", "ct_srv_src", "ct_srv_dst", "ct_dst_ltm",
+    "ct_src_ltm", "ct_src_dport_ltm", "ct_dst_sport_ltm", "ct_dst_src_ltm",
+    "attack_cat", "Label",
+)
+
+
+@dataclass(frozen=True)
+class DatasetProfile:
+    """How to read one dataset family.
+
+    Attributes:
+        name: Profile key (``default``, ``cicids``, ``unsw``, ``custom``).
+        description: Human-readable name shown in the CLI output.
+        column_mapping: Source column -> canonical/internal field name.
+        signature_columns: Columns characteristic of the dataset; used by
+            auto-detection to pick between profiles that both fit.
+        dayfirst: Parse ambiguous dates as day/month (CICIDS uses d/m/Y).
+        strict_protocols: If True only ``SchemaConfig.valid_protocols`` are
+            accepted; otherwise any protocol name is kept (ARP, OSPF, ...).
+        missing_port_as_zero: Treat ``-``/empty ports (ICMP, ARP flows) as 0
+            instead of rejecting the row.
+        packet_length_bounds: ``(min, max)`` override for packet_length; ``max``
+            may be None (flow byte counts can exceed 65535). None = schema default.
+        headerless_columns: Column names to use when the file has no header row.
+    """
+
+    name: str
+    description: str
+    column_mapping: Mapping[str, str]
+    signature_columns: Tuple[str, ...] = ()
+    dayfirst: bool = False
+    strict_protocols: bool = True
+    missing_port_as_zero: bool = False
+    packet_length_bounds: Optional[Tuple[int, Optional[int]]] = None
+    headerless_columns: Tuple[str, ...] = ()
+
+
+def _default_mapping() -> Dict[str, str]:
+    """Mapping for this tool's own CSV format (display, snake_case and canonical names)."""
+    schema = SchemaConfig()
+    mapping = dict(schema.column_map)
+    mapping.update({c: c for c in schema.internal_columns})
+    mapping.update({c: c for c in CANONICAL_TO_INTERNAL})
+    return mapping
+
+
+#: Built-in profiles selectable with ``--profile``.
+DATASET_PROFILES: Dict[str, DatasetProfile] = {
+    "default": DatasetProfile(
+        name="default",
+        description="Native format (mock_data_generator.py)",
+        column_mapping=_default_mapping(),
+        signature_columns=SchemaConfig().csv_headers,
+    ),
+    "cicids": DatasetProfile(
+        name="cicids",
+        description="CICIDS2017 / CSE-CIC-IDS2018 (CICFlowMeter flows)",
+        column_mapping=COLUMN_MAPPING["cicids"],
+        signature_columns=("Flow ID", "Flow Duration", "Total Fwd Packets", "Tot Fwd Pkts",
+                           "Total Length of Fwd Packets", "TotLen Fwd Pkts", "Flow Bytes/s",
+                           "Flow Byts/s", "Label"),
+        dayfirst=True,
+        strict_protocols=False,
+        packet_length_bounds=(0, None),
+    ),
+    "unsw": DatasetProfile(
+        name="unsw",
+        description="UNSW-NB15 (Argus/Bro flows)",
+        column_mapping=COLUMN_MAPPING["unsw"],
+        signature_columns=("srcip", "dstip", "dsport", "sbytes", "dbytes", "stime", "ltime",
+                           "attack_cat", "ct_srv_src"),
+        strict_protocols=False,
+        missing_port_as_zero=True,
+        packet_length_bounds=(0, None),
+        headerless_columns=UNSW_NB15_COLUMNS,
+    ),
+}
+
+#: Profile names accepted by the parser / CLI (``auto`` triggers detection).
+PROFILE_CHOICES: Tuple[str, ...] = ("auto", "cicids", "unsw", "default")
+
+#: Friendly aliases accepted wherever a profile name is expected.
+PROFILE_ALIASES: Dict[str, str] = {
+    "cicids2017": "cicids",
+    "cicids2018": "cicids",
+    "cse-cic-ids2018": "cicids",
+    "unsw-nb15": "unsw",
+    "unswnb15": "unsw",
+    "native": "default",
+}
+
+
+def make_custom_profile(mapping: Mapping[str, str], description: str = "Custom mapping",
+                        **options: object) -> DatasetProfile:
+    """Build a profile from a user mapping (source column -> canonical/internal name).
+
+    Extra keyword ``options`` are forwarded to :class:`DatasetProfile` (e.g.
+    ``dayfirst=True`` or ``strict_protocols=False``). Custom profiles are lenient
+    about protocols and flow sizes by default because external data usually is.
+    """
+    unknown = sorted({v for v in mapping.values()}
+                     - set(CANONICAL_TO_INTERNAL) - set(CANONICAL_TO_INTERNAL.values()))
+    if unknown:
+        raise ValueError(f"Unknown target field(s) in custom mapping: {', '.join(unknown)}. "
+                         f"Valid targets: {', '.join(CANONICAL_TO_INTERNAL)}")
+    defaults: Dict[str, object] = {"strict_protocols": False, "missing_port_as_zero": True,
+                                   "packet_length_bounds": (0, None)}
+    defaults.update(options)
+    return DatasetProfile(name="custom", description=description, column_mapping=dict(mapping),
+                          **defaults)  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------- #

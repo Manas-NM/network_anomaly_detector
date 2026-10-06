@@ -29,7 +29,7 @@ from rich.console import Console
 from rich.table import Table
 
 from alerting import AlertManager, Severity
-from config import CONFIG, AppConfig
+from config import CONFIG, PROFILE_CHOICES, AppConfig
 from dashboard import Dashboard
 from detection_engine import DetectionEngine
 from log_parser import LogParseError, LogParser
@@ -46,6 +46,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     io = parser.add_argument_group("input / output")
     io.add_argument("-i", "--input", type=Path, default=CONFIG.paths.log_file,
                     help="CSV log file to analyse")
+    io.add_argument("-p", "--profile", choices=list(PROFILE_CHOICES), default="auto",
+                    help="Input dataset format: auto-detect, CICIDS2017/CSE-CIC-IDS2018, "
+                         "UNSW-NB15, or this tool's native format")
     io.add_argument("-a", "--alerts-log", type=Path, default=CONFIG.paths.alerts_log,
                     help="Alert log output file")
     io.add_argument("--append", action="store_true",
@@ -117,14 +120,19 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
     # 2. Parse ------------------------------------------------------------ #
     t0 = time.perf_counter()
     try:
-        parsed = LogParser(config).parse(args.input)
+        parsed = LogParser(config, dataset_profile=args.profile).parse(args.input)
     except LogParseError as exc:
         console.print(f"[bold red]✘ {exc}[/]")
         if not args.input.exists():
             console.print("  Tip: run with [bold]--generate[/] to create sample data.")
         return 1
+    how = "auto-detected" if parsed.auto_detected else "selected"
+    console.print(f"[green]✔[/] Dataset profile: [bold]{parsed.profile}[/] — "
+                  f"{parsed.profile_description} ({how}{', headerless file' if parsed.headerless else ''})")
+    console.print("  [dim]column mapping: " + ", ".join(
+        f"{src!r}→{dst}" for src, dst in parsed.column_mapping.items()) + "[/]")
     console.print(f"[green]✔[/] Parsed {parsed.total_rows:,} rows from {parsed.source} "
-                  f"({parsed.valid_rows:,} valid, {parsed.invalid_rows} rejected) "
+                  f"({parsed.valid_rows:,} valid, {parsed.invalid_rows:,} rejected) "
                   f"in {time.perf_counter() - t0:.2f}s")
     for err in parsed.errors[:5]:
         console.print(f"  [dim]rejected line {err.line_number}: {err.reason}[/]")

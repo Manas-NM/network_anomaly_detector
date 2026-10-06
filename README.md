@@ -21,6 +21,7 @@ without capturing live traffic or needing root privileges.
 | **ML anomaly detection** | Isolation Forest trained on packet size plus per-source connection frequency and byte-volume features. Each alert names the feature that deviated most from baseline. |
 | **Cross-correlation** | ML alerts whose source was also caught by a rule are tagged `corroborates PORT_SCAN`, etc. |
 | **Robust parsing** | Bad timestamps, IPs, ports, protocols, sizes and field counts are rejected with line numbers. The run never crashes on them. |
+| **Public dataset support** | Reads **CICIDS2017**, **CSE-CIC-IDS2018** and **UNSW-NB15** CSVs directly. The format is auto-detected, columns are mapped, and protocol numbers are turned into names. You can also supply your own column mapping. See [Using External Datasets](#-using-external-datasets). |
 | **Alert logging** | One pipe-delimited line per alert in `alerts.log`, plus optional JSON export. |
 | **Rich dashboard** | Traffic summary, protocol distribution, alerts by severity and type, top talkers, and recent alerts colour-coded by severity. Optional animated **live replay**. |
 
@@ -81,7 +82,7 @@ network_anomaly_detector/
 ├── requirements.txt
 ├── config.py              # Central configuration (thresholds, blacklists, paths, ML params)
 ├── mock_data_generator.py # Generates synthetic CSV logs with embedded anomalies
-├── log_parser.py          # Parses + validates CSV log files into a DataFrame
+├── log_parser.py          # Parses + validates CSV logs (native, CICIDS, UNSW-NB15, custom)
 ├── detection_engine.py    # Rule-based + Isolation Forest ML detection
 ├── alerting.py            # Alert model, severity levels, alerts.log writer
 ├── dashboard.py           # Rich terminal dashboard (static + live replay)
@@ -138,6 +139,10 @@ python main.py --json reports/alerts.json
 
 # 7) Tune Isolation Forest sensitivity
 python main.py --contamination 0.02
+
+# 8) Analyse a public dataset (format auto-detected; see "Using External Datasets")
+python main.py --input data/Tuesday-WorkingHours.pcap_ISCX.csv --dashboard
+python main.py --input data/UNSW-NB15_1.csv --profile unsw
 ```
 
 ### CLI reference (`python main.py --help`)
@@ -145,6 +150,7 @@ python main.py --contamination 0.02
 | Option | Description | Default |
 |---|---|---|
 | `-i, --input PATH` | CSV log file to analyse | `data/network_logs.csv` |
+| `-p, --profile NAME` | Input format: `auto`, `cicids`, `unsw` or `default` (native) | `auto` |
 | `-g, --generate` | Generate synthetic logs to `--input` first | off |
 | `--rows N` / `--seed N` | Size / seed of the generated data | `10000` / `1337` |
 | `-d, --dashboard` | Show the Rich dashboard | off |
@@ -177,6 +183,125 @@ Timestamp,Source IP,Destination IP,Source Port,Destination Port,Protocol,Packet 
 * **Packet Length**: 1–65535 bytes.
 
 Headers are matched case-insensitively. Snake_case headers (`timestamp, src_ip, …`) also work.
+
+---
+
+## 🌐 Using External Datasets
+
+Besides its own format, the tool can read well-known public intrusion-detection datasets
+**as downloaded**. You don't need to rename columns or convert anything first.
+
+### Download links
+
+| Dataset | Publisher | Link |
+|---|---|---|
+| **CICIDS2017** | Canadian Institute for Cybersecurity (UNB) | <https://www.unb.ca/cic/datasets/ids-2017.html> |
+| **CSE-CIC-IDS2018** | CSE & Canadian Institute for Cybersecurity (on AWS) | <https://www.unb.ca/cic/datasets/ids-2018.html> |
+| **UNSW-NB15** | UNSW Canberra Cyber | <https://research.unsw.edu.au/projects/unsw-nb15-dataset> |
+
+For CICIDS2017, use the *flow* CSVs (`GeneratedLabelledFlows` / `TrafficLabelling`), not the
+`MachineLearningCVE` CSVs. The `MachineLearningCVE` files have no IP or timestamp columns,
+so the detector cannot work with them. For UNSW-NB15, use `UNSW-NB15_1.csv` … `UNSW-NB15_4.csv`.
+The `*_training-set.csv` / `*_testing-set.csv` files have no IPs or timestamps.
+
+### Dataset profiles
+
+A **profile** tells the parser which column in the file holds which piece of information.
+
+| Profile | Use it for | Timestamp | Source IP | Destination IP | Source port | Destination port | Protocol | Packet length |
+|---|---|---|---|---|---|---|---|---|
+| `default` | This tool's native format | `Timestamp` | `Source IP` | `Destination IP` | `Source Port` | `Destination Port` | `Protocol` | `Packet Length` |
+| `cicids` | CICIDS2017 | ` Timestamp` | ` Source IP` | ` Destination IP` | ` Source Port` | ` Destination Port` | ` Protocol` | `Total Length of Fwd Packets` |
+| `cicids` | CSE-CIC-IDS2018 | `Timestamp` | `Src IP` | `Dst IP` | `Src Port` | `Dst Port` | `Protocol` | `TotLen Fwd Pkts` |
+| `unsw` | UNSW-NB15 | `stime` | `srcip` | `dstip` | `sport` | `dsport` | `proto` | `sbytes` |
+
+The mappings are defined in `COLUMN_MAPPING` in `config.py`.
+
+What the parser does for you:
+
+* **Strips whitespace** from column names. CICIDS2017 headers start with a space (`" Source IP"`).
+  Names are also matched case-insensitively, and a byte-order mark is ignored.
+* **Converts numeric protocols to names** using `PROTOCOL_NUMBER_MAP` in `config.py`
+  (`6`→`TCP`, `17`→`UDP`, `1`→`ICMP`, `0`→`HOPOPT`, `2`→`IGMP`, `47`→`GRE`, `89`→`OSPF`, …).
+  Numbers that aren't in the map become `PROTO-<n>`.
+* **Reads each dataset's timestamps correctly.** CICIDS uses day/month/year (`3/7/2017 8:55` = 3 July 2017).
+  UNSW-NB15 uses Unix epoch seconds.
+* **Handles dataset quirks:**
+  * The UNSW-NB15 CSV files have no header row. The parser recognises them by their 49 columns and fills in the official column names.
+  * In UNSW-NB15, ports written as `-` are read as 0, and hexadecimal ports (`0x000b`) are converted.
+  * In CSE-CIC-IDS2018, header rows that repeat in the middle of a file are skipped.
+  * Protocols other than TCP/UDP/ICMP (e.g. `HOPOPT`, `ARP`, `OSPF`) are accepted for external datasets.
+* **Shows which mapping was used.** It logs it, and the CLI prints it:
+
+  ```
+  ✔ Dataset profile: cicids — CICIDS2017 / CSE-CIC-IDS2018 (CICFlowMeter flows) (auto-detected)
+    column mapping: 'Timestamp'→timestamp, 'Source IP'→src_ip, ..., 'Total Length of Fwd Packets'→packet_length
+  ```
+
+### Auto-detection
+
+`--profile auto` is the default. It works like this:
+
+1. If the first row looks like data rather than a header (it starts with an IP address and has 49 fields),
+   the file is treated as a **headerless UNSW-NB15** file.
+2. Otherwise, the parser checks each profile against the header. It picks the one that matches all
+   7 required fields. If more than one matches, it picks the one with the most dataset-specific columns
+   (e.g. `Flow ID` / `Flow Duration` for CICIDS, `dbytes` / `ltime` for UNSW).
+3. If no profile matches, the run stops with exit code `1` and a message listing the missing columns.
+
+### Choosing a profile with `--profile`
+
+```bash
+# Let the tool work out the format (default)
+python main.py -i data/Wednesday-workingHours.pcap_ISCX.csv
+
+# Force a specific profile (useful if auto-detection guesses wrong)
+python main.py -i data/Friday-02-03-2018_TrafficForML_CICFlowMeter.csv --profile cicids
+python main.py -i data/UNSW-NB15_3.csv --profile unsw --dashboard
+
+# Force the native format
+python main.py -i data/network_logs.csv --profile default
+```
+
+If you force a profile that doesn't fit the file, the error tells you which columns are
+missing and what names were expected.
+
+### Custom mappings (Python API)
+
+For any other CSV, give the parser a dict that maps **your column names** to the canonical
+names: `timestamp`, `source_ip`, `destination_ip`, `source_port`, `destination_port`,
+`protocol` and `packet_length`. The internal names `src_ip` / `dst_ip` / `src_port` /
+`dst_port` work too.
+
+```python
+from config import CONFIG
+from log_parser import parse_log_file
+
+mapping = {"ts": "timestamp", "from": "source_ip", "to": "destination_ip",
+           "fport": "source_port", "tport": "destination_port",
+           "proto_num": "protocol", "bytes": "packet_length"}
+
+result = parse_log_file("my_firewall.csv", CONFIG, dataset_profile=mapping)
+# or: parse_log_file(path, CONFIG, dataset_profile="custom", column_mapping=mapping)
+print(result.profile, result.valid_rows, result.column_mapping)
+```
+
+In the Python API, `dataset_profile=None` (the default) means the native format, so existing code
+works exactly as before. Pass `"auto"` to turn on detection.
+
+### Things to keep in mind
+
+* **These datasets contain flows, not packets.** One row is a whole connection.
+  `packet_length` is filled with the bytes sent by the source (`Total Length of Fwd Packets` / `sbytes`),
+  so values can be much larger than 1,500 and can be 0. The ML model treats those values as normal for the
+  file it is analysing. The rule thresholds in `config.py` (ports per 5 s, connections per 10 s) were
+  designed for packet-level logs. You may want to tune them for flow data.
+* **The label columns are ignored.** `Label` and `attack_cat` are not used for detection. You can
+  use them yourself to check the alerts afterwards.
+* **Memory.** Single CICIDS / UNSW files hold hundreds of thousands to millions of rows, and
+  the parser loads the whole file into memory. Start with one day's file.
+* Rows with `Infinity` / `NaN` in *unused* columns (common in CICIDS) are fine. Only the 7 mapped
+  columns are checked.
 
 ---
 
@@ -214,6 +339,13 @@ All thresholds can be changed in `config.py`.
 ### `config.py`
 Frozen dataclasses (`PathConfig`, `SchemaConfig`, `RuleConfig`, `MLConfig`,
 `DashboardConfig`, `GeneratorConfig`) grouped into one `AppConfig` instance called `CONFIG`.
+The dataset-ingestion settings live in this file too:
+* `COLUMN_MAPPING`: presets `cicids`, `unsw` and `custom`
+* `PROTOCOL_NUMBER_MAP`
+* `UNSW_NB15_COLUMNS`
+* `DATASET_PROFILES`
+* `make_custom_profile()`
+
 To customise it without editing the file, use `dataclasses.replace`:
 
 ```python
@@ -238,12 +370,16 @@ cfg = replace(CONFIG, rules=replace(CONFIG.rules, port_scan_unique_ports=5))
 | Malformed rows | 7 | Rejected by the parser |
 
 ### `log_parser.py`
-`LogParser.parse()` reads the file with the `csv` module. Rows with the wrong number of
-fields are recorded and skipped. It then normalises headers, validates every field with
-vectorised pandas checks, and returns a `ParseResult` with:
+`LogParser(config, dataset_profile=None, column_mapping=None).parse()` reads the file with the
+`csv` module and picks a dataset profile (`"auto"`, `"cicids"`, `"unsw"`, `"default"`/`None`,
+`"custom"` or a mapping dict). It then maps the columns onto the internal schema, keeping only the
+7 needed fields. Rows with the wrong number of fields (and repeated header rows) are recorded and
+skipped. Protocol numbers are converted to names, and every field is validated with vectorised
+pandas checks. It returns a `ParseResult` with:
 * `data`: a typed DataFrame sorted by timestamp
 * stats: `total_rows`, `valid_rows`, `invalid_rows`
 * `errors`: a list of `RowError(line_number, reason, raw)`
+* `profile`, `auto_detected`, `headerless`, `column_mapping`: which mapping was used
 
 `ParseResult.to_records()` gives you the rows as a list of dicts.
 
