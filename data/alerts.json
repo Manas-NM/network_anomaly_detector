@@ -1,0 +1,1320 @@
+[
+  {
+    "timestamp": "2026-10-05T08:00:03.160920",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "HIGH",
+    "source_ip": "10.0.0.18",
+    "dest_ip": "192.0.2.99",
+    "description": "Outbound connections to blacklisted host 192.0.2.99: 20 events, 1 internal peer(s), dst ports [4444]",
+    "details": {
+      "blacklisted_ip": "192.0.2.99",
+      "direction": "outbound",
+      "events": 20,
+      "peers": [
+        "10.0.0.18"
+      ],
+      "total_bytes": 6217,
+      "dst_ports": [
+        4444
+      ],
+      "first_seen": "2026-10-05 08:00:03.160920",
+      "last_seen": "2026-10-05 08:57:02.547354"
+    },
+    "detected_at": "2026-10-06T03:18:12.149394"
+  },
+  {
+    "timestamp": "2026-10-05T08:01:26.122283",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "198.51.100.129",
+    "dest_ip": "4 hosts",
+    "description": "Inbound traffic from blacklisted host 198.51.100.129: 4 events, 4 internal peer(s), dst ports [22, 443, 8080]",
+    "details": {
+      "blacklisted_ip": "198.51.100.129",
+      "direction": "inbound",
+      "events": 4,
+      "peers": [
+        "192.168.1.10",
+        "192.168.1.11",
+        "192.168.1.19",
+        "192.168.1.25"
+      ],
+      "total_bytes": 2168,
+      "dst_ports": [
+        22,
+        443,
+        8080
+      ],
+      "first_seen": "2026-10-05 08:01:26.122283",
+      "last_seen": "2026-10-05 08:54:20.455081"
+    },
+    "detected_at": "2026-10-06T03:18:12.149575"
+  },
+  {
+    "timestamp": "2026-10-05T08:04:06.513640",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "192.0.2.66",
+    "dest_ip": "5 hosts",
+    "description": "Inbound traffic from blacklisted host 192.0.2.66: 5 events, 5 internal peer(s), dst ports [22, 443, 8080]",
+    "details": {
+      "blacklisted_ip": "192.0.2.66",
+      "direction": "inbound",
+      "events": 5,
+      "peers": [
+        "192.168.1.15",
+        "192.168.1.17",
+        "192.168.1.2",
+        "192.168.1.22",
+        "192.168.1.3"
+      ],
+      "total_bytes": 4348,
+      "dst_ports": [
+        22,
+        443,
+        8080
+      ],
+      "first_seen": "2026-10-05 08:04:06.513640",
+      "last_seen": "2026-10-05 08:59:42.328635"
+    },
+    "detected_at": "2026-10-06T03:18:12.149748"
+  },
+  {
+    "timestamp": "2026-10-05T08:04:28.469669",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "139.89.174.210",
+    "dest_ip": "143.241.251.37",
+    "description": "Traffic deviates from baseline: packet_length=10,911 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0569,
+      "top_feature": "packet_length",
+      "top_feature_value": 10911,
+      "top_feature_robust_z": 9.09,
+      "max_packet_length": 10911,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:04:28.469669",
+      "last_seen": "2026-10-05 08:04:28.469669"
+    },
+    "detected_at": "2026-10-06T03:18:13.007077"
+  },
+  {
+    "timestamp": "2026-10-05T08:05:07.453007",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "168.121.207.229",
+    "dest_ip": "19.126.44.200",
+    "description": "Traffic deviates from baseline: packet_length=14,108 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0839,
+      "top_feature": "packet_length",
+      "top_feature_value": 14108,
+      "top_feature_robust_z": 11.86,
+      "max_packet_length": 14108,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:05:07.453007",
+      "last_seen": "2026-10-05 08:05:07.453007"
+    },
+    "detected_at": "2026-10-06T03:18:13.007847"
+  },
+  {
+    "timestamp": "2026-10-05T08:08:35.119177",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.48",
+    "dest_ip": "170.162.156.76",
+    "description": "Traffic deviates from baseline: src_conn_freq=4 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0003,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 4,
+      "top_feature_robust_z": 3.0,
+      "max_packet_length": 652,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:08:35.119177",
+      "last_seen": "2026-10-05 08:08:35.119177"
+    },
+    "detected_at": "2026-10-06T03:18:13.008518"
+  },
+  {
+    "timestamp": "2026-10-05T08:08:57.671320",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "198.51.100.131",
+    "dest_ip": "4 hosts",
+    "description": "Inbound traffic from blacklisted host 198.51.100.131: 4 events, 4 internal peer(s), dst ports [80, 443, 8080]",
+    "details": {
+      "blacklisted_ip": "198.51.100.131",
+      "direction": "inbound",
+      "events": 4,
+      "peers": [
+        "192.168.1.17",
+        "192.168.1.28",
+        "192.168.1.6",
+        "192.168.1.9"
+      ],
+      "total_bytes": 2374,
+      "dst_ports": [
+        80,
+        443,
+        8080
+      ],
+      "first_seen": "2026-10-05 08:08:57.671320",
+      "last_seen": "2026-10-05 08:52:17.885289"
+    },
+    "detected_at": "2026-10-06T03:18:12.149911"
+  },
+  {
+    "timestamp": "2026-10-05T08:10:10.291429",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "192.0.2.99",
+    "dest_ip": "9 hosts",
+    "description": "Inbound traffic from blacklisted host 192.0.2.99: 10 events, 9 internal peer(s), dst ports [22, 443, 8080]",
+    "details": {
+      "blacklisted_ip": "192.0.2.99",
+      "direction": "inbound",
+      "events": 10,
+      "peers": [
+        "192.168.1.12",
+        "192.168.1.13",
+        "192.168.1.15",
+        "192.168.1.17",
+        "192.168.1.18",
+        "192.168.1.2",
+        "192.168.1.24",
+        "192.168.1.4",
+        "192.168.1.6"
+      ],
+      "total_bytes": 7409,
+      "dst_ports": [
+        22,
+        443,
+        8080
+      ],
+      "first_seen": "2026-10-05 08:10:10.291429",
+      "last_seen": "2026-10-05 08:55:05.730933"
+    },
+    "detected_at": "2026-10-06T03:18:12.150064"
+  },
+  {
+    "timestamp": "2026-10-05T08:10:13.016719",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.39",
+    "dest_ip": "203.36.16.253",
+    "description": "Traffic deviates from baseline: src_bytes_window=4,075 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0041,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 4075,
+      "top_feature_robust_z": 2.81,
+      "max_packet_length": 1486,
+      "max_src_conn_freq": 3,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:10:13.016719",
+      "last_seen": "2026-10-05 08:10:13.016719"
+    },
+    "detected_at": "2026-10-06T03:18:13.009137"
+  },
+  {
+    "timestamp": "2026-10-05T08:12:00",
+    "alert_type": "PORT_SCAN",
+    "severity": "HIGH",
+    "source_ip": "203.0.113.45",
+    "dest_ip": "192.168.1.10",
+    "description": "Port scan: 64 unique ports probed in 3.0s (threshold >10 in 5s)",
+    "details": {
+      "unique_ports": 64,
+      "peak_ports_in_window": 64,
+      "events": 64,
+      "duration_seconds": 2.953,
+      "first_seen": "2026-10-05 08:12:00",
+      "last_seen": "2026-10-05 08:12:02.953125",
+      "sample_ports": [
+        6,
+        62,
+        77,
+        81,
+        88,
+        108,
+        115,
+        141,
+        176,
+        233,
+        279,
+        286,
+        296,
+        319,
+        326,
+        328,
+        393,
+        394,
+        399,
+        401
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:12.139287"
+  },
+  {
+    "timestamp": "2026-10-05T08:12:00.234375",
+    "alert_type": "ML_ANOMALY",
+    "severity": "HIGH",
+    "source_ip": "203.0.113.45",
+    "dest_ip": "192.168.1.10",
+    "description": "Traffic deviates from baseline: src_conn_freq=64 (baseline median 1); 59 anomalous record(s) [corroborates PORT_SCAN]",
+    "details": {
+      "anomalous_records": 59,
+      "min_anomaly_score": -0.1878,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 64,
+      "top_feature_robust_z": 63.0,
+      "max_packet_length": 64,
+      "max_src_conn_freq": 64,
+      "dst_ports": [
+        6,
+        62,
+        77,
+        81,
+        108,
+        141,
+        176,
+        233,
+        279,
+        286
+      ],
+      "first_seen": "2026-10-05 08:12:00.234375",
+      "last_seen": "2026-10-05 08:12:02.953125",
+      "corroborated_by": [
+        "PORT_SCAN"
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:13.009780"
+  },
+  {
+    "timestamp": "2026-10-05T08:12:07.297193",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.12",
+    "dest_ip": "182.186.177.205",
+    "description": "Traffic deviates from baseline: packet_length=14,645 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0862,
+      "top_feature": "packet_length",
+      "top_feature_value": 14645,
+      "top_feature_robust_z": 12.33,
+      "max_packet_length": 14645,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:12:07.297193",
+      "last_seen": "2026-10-05 08:12:07.297193"
+    },
+    "detected_at": "2026-10-06T03:18:13.010400"
+  },
+  {
+    "timestamp": "2026-10-05T08:12:08.045287",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.12",
+    "dest_ip": "192.168.1.3",
+    "description": "Traffic deviates from baseline: src_bytes_window=16,096 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0149,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 16096,
+      "top_feature_robust_z": 12.6,
+      "max_packet_length": 1451,
+      "max_src_conn_freq": 2,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:12:08.045287",
+      "last_seen": "2026-10-05 08:12:08.045287"
+    },
+    "detected_at": "2026-10-06T03:18:13.010987"
+  },
+  {
+    "timestamp": "2026-10-05T08:13:59.541811",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "4.48.240.77",
+    "dest_ip": "192.168.1.2",
+    "description": "Traffic deviates from baseline: packet_length=12,917 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0872,
+      "top_feature": "packet_length",
+      "top_feature_value": 12917,
+      "top_feature_robust_z": 10.83,
+      "max_packet_length": 12917,
+      "max_src_conn_freq": 2,
+      "dst_ports": [
+        53
+      ],
+      "first_seen": "2026-10-05 08:13:59.541811",
+      "last_seen": "2026-10-05 08:13:59.541811"
+    },
+    "detected_at": "2026-10-06T03:18:13.011664"
+  },
+  {
+    "timestamp": "2026-10-05T08:14:16.000314",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "210.234.55.252",
+    "dest_ip": "164.106.236.7",
+    "description": "Traffic deviates from baseline: packet_length=11,658 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0645,
+      "top_feature": "packet_length",
+      "top_feature_value": 11658,
+      "top_feature_robust_z": 9.74,
+      "max_packet_length": 11658,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        53
+      ],
+      "first_seen": "2026-10-05 08:14:16.000314",
+      "last_seen": "2026-10-05 08:14:16.000314"
+    },
+    "detected_at": "2026-10-06T03:18:13.012233"
+  },
+  {
+    "timestamp": "2026-10-05T08:14:36.544258",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "73.240.230.66",
+    "dest_ip": "91.68.148.87",
+    "description": "Traffic deviates from baseline: packet_length=10,833 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0558,
+      "top_feature": "packet_length",
+      "top_feature_value": 10833,
+      "top_feature_robust_z": 9.03,
+      "max_packet_length": 10833,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:14:36.544258",
+      "last_seen": "2026-10-05 08:14:36.544258"
+    },
+    "detected_at": "2026-10-06T03:18:13.012841"
+  },
+  {
+    "timestamp": "2026-10-05T08:14:40.095445",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.42",
+    "dest_ip": "166.8.200.232",
+    "description": "Traffic deviates from baseline: packet_length=15,505 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0889,
+      "top_feature": "packet_length",
+      "top_feature_value": 15505,
+      "top_feature_robust_z": 13.07,
+      "max_packet_length": 15505,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:14:40.095445",
+      "last_seen": "2026-10-05 08:14:40.095445"
+    },
+    "detected_at": "2026-10-06T03:18:13.013433"
+  },
+  {
+    "timestamp": "2026-10-05T08:14:44.837884",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "65.199.193.89",
+    "dest_ip": "192.168.1.24",
+    "description": "Traffic deviates from baseline: packet_length=14,708 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0862,
+      "top_feature": "packet_length",
+      "top_feature_value": 14708,
+      "top_feature_robust_z": 12.38,
+      "max_packet_length": 14708,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:14:44.837884",
+      "last_seen": "2026-10-05 08:14:44.837884"
+    },
+    "detected_at": "2026-10-06T03:18:13.014007"
+  },
+  {
+    "timestamp": "2026-10-05T08:14:54.028957",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "86.102.72.140",
+    "dest_ip": "109.236.194.88",
+    "description": "Traffic deviates from baseline: packet_length=10,886 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0561,
+      "top_feature": "packet_length",
+      "top_feature_value": 10886,
+      "top_feature_robust_z": 9.07,
+      "max_packet_length": 10886,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:14:54.028957",
+      "last_seen": "2026-10-05 08:14:54.028957"
+    },
+    "detected_at": "2026-10-06T03:18:13.014602"
+  },
+  {
+    "timestamp": "2026-10-05T08:15:23.563687",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "203.0.113.200",
+    "dest_ip": "4 hosts",
+    "description": "Inbound traffic from blacklisted host 203.0.113.200: 4 events, 4 internal peer(s), dst ports [22, 80, 8080]",
+    "details": {
+      "blacklisted_ip": "203.0.113.200",
+      "direction": "inbound",
+      "events": 4,
+      "peers": [
+        "192.168.1.19",
+        "192.168.1.23",
+        "192.168.1.25",
+        "192.168.1.28"
+      ],
+      "total_bytes": 3500,
+      "dst_ports": [
+        22,
+        80,
+        8080
+      ],
+      "first_seen": "2026-10-05 08:15:23.563687",
+      "last_seen": "2026-10-05 08:59:27.818480"
+    },
+    "detected_at": "2026-10-06T03:18:12.150214"
+  },
+  {
+    "timestamp": "2026-10-05T08:15:55.067317",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "146.168.98.62",
+    "dest_ip": "192.168.1.21",
+    "description": "Traffic deviates from baseline: src_bytes_window=4,171 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0055,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 4171,
+      "top_feature_robust_z": 2.89,
+      "max_packet_length": 1481,
+      "max_src_conn_freq": 3,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:15:55.067317",
+      "last_seen": "2026-10-05 08:15:55.067317"
+    },
+    "detected_at": "2026-10-06T03:18:13.015182"
+  },
+  {
+    "timestamp": "2026-10-05T08:16:18.893177",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.21",
+    "dest_ip": "192.168.1.20",
+    "description": "Traffic deviates from baseline: packet_length=14,169 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0839,
+      "top_feature": "packet_length",
+      "top_feature_value": 14169,
+      "top_feature_robust_z": 11.92,
+      "max_packet_length": 14169,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:16:18.893177",
+      "last_seen": "2026-10-05 08:16:18.893177"
+    },
+    "detected_at": "2026-10-06T03:18:13.015931"
+  },
+  {
+    "timestamp": "2026-10-05T08:24:00.005021",
+    "alert_type": "BRUTE_FORCE",
+    "severity": "HIGH",
+    "source_ip": "198.51.100.23",
+    "dest_ip": "192.168.1.20",
+    "description": "Brute force on port 22: 60 connections in 14.7s (peak 41 in 10s, threshold >20)",
+    "details": {
+      "dst_port": 22,
+      "connections": 60,
+      "peak_connections_in_window": 41,
+      "duration_seconds": 14.726,
+      "first_seen": "2026-10-05 08:24:00.005021",
+      "last_seen": "2026-10-05 08:24:14.731037"
+    },
+    "detected_at": "2026-10-06T03:18:12.144281"
+  },
+  {
+    "timestamp": "2026-10-05T08:24:01.237158",
+    "alert_type": "ML_ANOMALY",
+    "severity": "HIGH",
+    "source_ip": "198.51.100.23",
+    "dest_ip": "192.168.1.20",
+    "description": "Traffic deviates from baseline: src_conn_freq=41 (baseline median 1); 55 anomalous record(s) [corroborates BRUTE_FORCE]",
+    "details": {
+      "anomalous_records": 55,
+      "min_anomaly_score": -0.1613,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 41,
+      "top_feature_robust_z": 40.0,
+      "max_packet_length": 176,
+      "max_src_conn_freq": 41,
+      "dst_ports": [
+        22
+      ],
+      "first_seen": "2026-10-05 08:24:01.237158",
+      "last_seen": "2026-10-05 08:24:14.731037",
+      "corroborated_by": [
+        "BRUTE_FORCE"
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:13.016553"
+  },
+  {
+    "timestamp": "2026-10-05T08:24:30.297388",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.44",
+    "dest_ip": "7.73.208.235",
+    "description": "Traffic deviates from baseline: packet_length=9,078 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0384,
+      "top_feature": "packet_length",
+      "top_feature_value": 9078,
+      "top_feature_robust_z": 7.51,
+      "max_packet_length": 9078,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:24:30.297388",
+      "last_seen": "2026-10-05 08:24:30.297388"
+    },
+    "detected_at": "2026-10-06T03:18:13.017168"
+  },
+  {
+    "timestamp": "2026-10-05T08:24:32.339403",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.44",
+    "dest_ip": "148.201.200.254",
+    "description": "Traffic deviates from baseline: src_bytes_window=11,370 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0298,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 11370,
+      "top_feature_robust_z": 8.75,
+      "max_packet_length": 1389,
+      "max_src_conn_freq": 3,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:24:32.339403",
+      "last_seen": "2026-10-05 08:24:32.339403"
+    },
+    "detected_at": "2026-10-06T03:18:13.017772"
+  },
+  {
+    "timestamp": "2026-10-05T08:26:19.606421",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.2",
+    "dest_ip": "12.187.174.213",
+    "description": "Traffic deviates from baseline: src_conn_freq=4 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0185,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 4,
+      "top_feature_robust_z": 3.0,
+      "max_packet_length": 1336,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:26:19.606421",
+      "last_seen": "2026-10-05 08:26:19.606421"
+    },
+    "detected_at": "2026-10-06T03:18:13.018371"
+  },
+  {
+    "timestamp": "2026-10-05T08:26:31.657007",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.28",
+    "dest_ip": "192.168.1.2",
+    "description": "Traffic deviates from baseline: src_conn_freq=4 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0204,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 4,
+      "top_feature_robust_z": 3.0,
+      "max_packet_length": 128,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        0
+      ],
+      "first_seen": "2026-10-05 08:26:31.657007",
+      "last_seen": "2026-10-05 08:26:31.657007"
+    },
+    "detected_at": "2026-10-06T03:18:13.018946"
+  },
+  {
+    "timestamp": "2026-10-05T08:28:49.501307",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "86.49.174.109",
+    "dest_ip": "159.167.164.251",
+    "description": "Traffic deviates from baseline: packet_length=9,013 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0368,
+      "top_feature": "packet_length",
+      "top_feature_value": 9013,
+      "top_feature_robust_z": 7.45,
+      "max_packet_length": 9013,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        53
+      ],
+      "first_seen": "2026-10-05 08:28:49.501307",
+      "last_seen": "2026-10-05 08:28:49.501307"
+    },
+    "detected_at": "2026-10-06T03:18:13.019577"
+  },
+  {
+    "timestamp": "2026-10-05T08:29:44.342051",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.38",
+    "dest_ip": "199.115.123.139",
+    "description": "Traffic deviates from baseline: packet_length=9,734 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.044,
+      "top_feature": "packet_length",
+      "top_feature_value": 9734,
+      "top_feature_robust_z": 8.08,
+      "max_packet_length": 9734,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:29:44.342051",
+      "last_seen": "2026-10-05 08:29:44.342051"
+    },
+    "detected_at": "2026-10-06T03:18:13.020154"
+  },
+  {
+    "timestamp": "2026-10-05T08:33:00.166667",
+    "alert_type": "ML_ANOMALY",
+    "severity": "HIGH",
+    "source_ip": "10.0.0.37",
+    "dest_ip": "93.184.216.200",
+    "description": "Traffic deviates from baseline: src_bytes_window=89,803 (baseline median 616); 119 anomalous record(s)",
+    "details": {
+      "anomalous_records": 119,
+      "min_anomaly_score": -0.2079,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 89803,
+      "top_feature_robust_z": 72.57,
+      "max_packet_length": 1500,
+      "max_src_conn_freq": 62,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:33:00.166667",
+      "last_seen": "2026-10-05 08:33:19.833333"
+    },
+    "detected_at": "2026-10-06T03:18:13.020781"
+  },
+  {
+    "timestamp": "2026-10-05T08:33:03.136367",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.37",
+    "dest_ip": "44.212.231.171",
+    "description": "Traffic deviates from baseline: src_bytes_window=28,679 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.1149,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 28679,
+      "top_feature_robust_z": 22.83,
+      "max_packet_length": 1198,
+      "max_src_conn_freq": 20,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:33:03.136367",
+      "last_seen": "2026-10-05 08:33:03.136367"
+    },
+    "detected_at": "2026-10-06T03:18:13.021446"
+  },
+  {
+    "timestamp": "2026-10-05T08:33:26.965148",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.37",
+    "dest_ip": "13.233.65.204",
+    "description": "Traffic deviates from baseline: src_bytes_window=26,121 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.1168,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 26121,
+      "top_feature_robust_z": 20.75,
+      "max_packet_length": 74,
+      "max_src_conn_freq": 19,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:33:26.965148",
+      "last_seen": "2026-10-05 08:33:26.965148"
+    },
+    "detected_at": "2026-10-06T03:18:13.022029"
+  },
+  {
+    "timestamp": "2026-10-05T08:35:06.016704",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.35",
+    "dest_ip": "192.168.1.26",
+    "description": "Traffic deviates from baseline: packet_length=13,232 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.1194,
+      "top_feature": "packet_length",
+      "top_feature_value": 13232,
+      "top_feature_robust_z": 11.1,
+      "max_packet_length": 13232,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:35:06.016704",
+      "last_seen": "2026-10-05 08:35:06.016704"
+    },
+    "detected_at": "2026-10-06T03:18:13.022630"
+  },
+  {
+    "timestamp": "2026-10-05T08:36:43.091372",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "174.228.39.145",
+    "dest_ip": "86.49.174.109",
+    "description": "Traffic deviates from baseline: packet_length=12,587 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0762,
+      "top_feature": "packet_length",
+      "top_feature_value": 12587,
+      "top_feature_robust_z": 10.55,
+      "max_packet_length": 12587,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:36:43.091372",
+      "last_seen": "2026-10-05 08:36:43.091372"
+    },
+    "detected_at": "2026-10-06T03:18:13.023222"
+  },
+  {
+    "timestamp": "2026-10-05T08:39:00",
+    "alert_type": "PORT_SCAN",
+    "severity": "MEDIUM",
+    "source_ip": "203.0.113.77",
+    "dest_ip": "192.168.1.12",
+    "description": "Port scan: 14 unique ports probed in 3.7s (threshold >10 in 5s)",
+    "details": {
+      "unique_ports": 14,
+      "peak_ports_in_window": 14,
+      "events": 14,
+      "duration_seconds": 3.714,
+      "first_seen": "2026-10-05 08:39:00",
+      "last_seen": "2026-10-05 08:39:03.714286",
+      "sample_ports": [
+        121,
+        152,
+        161,
+        219,
+        327,
+        398,
+        466,
+        503,
+        673,
+        829,
+        852,
+        882,
+        946,
+        969
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:12.139711"
+  },
+  {
+    "timestamp": "2026-10-05T08:39:01.428571",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "203.0.113.77",
+    "dest_ip": "192.168.1.12",
+    "description": "Traffic deviates from baseline: src_conn_freq=14 (baseline median 1); 9 anomalous record(s) [corroborates PORT_SCAN]",
+    "details": {
+      "anomalous_records": 9,
+      "min_anomaly_score": -0.09,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 14,
+      "top_feature_robust_z": 13.0,
+      "max_packet_length": 61,
+      "max_src_conn_freq": 14,
+      "dst_ports": [
+        121,
+        152,
+        398,
+        466,
+        673,
+        852,
+        882,
+        946,
+        969
+      ],
+      "first_seen": "2026-10-05 08:39:01.428571",
+      "last_seen": "2026-10-05 08:39:03.714286",
+      "corroborated_by": [
+        "PORT_SCAN"
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:13.023838"
+  },
+  {
+    "timestamp": "2026-10-05T08:41:03.426910",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "5.144.57.42",
+    "dest_ip": "12.187.174.213",
+    "description": "Traffic deviates from baseline: packet_length=11,252 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0603,
+      "top_feature": "packet_length",
+      "top_feature_value": 11252,
+      "top_feature_robust_z": 9.39,
+      "max_packet_length": 11252,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:41:03.426910",
+      "last_seen": "2026-10-05 08:41:03.426910"
+    },
+    "detected_at": "2026-10-06T03:18:13.024500"
+  },
+  {
+    "timestamp": "2026-10-05T08:45:08.805568",
+    "alert_type": "BLACKLISTED_IP",
+    "severity": "MEDIUM",
+    "source_ip": "198.51.100.130",
+    "dest_ip": "3 hosts",
+    "description": "Inbound traffic from blacklisted host 198.51.100.130: 3 events, 3 internal peer(s), dst ports [80]",
+    "details": {
+      "blacklisted_ip": "198.51.100.130",
+      "direction": "inbound",
+      "events": 3,
+      "peers": [
+        "192.168.1.19",
+        "192.168.1.21",
+        "192.168.1.23"
+      ],
+      "total_bytes": 3696,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:45:08.805568",
+      "last_seen": "2026-10-05 08:56:35.804009"
+    },
+    "detected_at": "2026-10-06T03:18:12.150481"
+  },
+  {
+    "timestamp": "2026-10-05T08:45:37.384246",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.31",
+    "dest_ip": "64.18.204.12",
+    "description": "Traffic deviates from baseline: src_conn_freq=5 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0052,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 5,
+      "top_feature_robust_z": 4.0,
+      "max_packet_length": 547,
+      "max_src_conn_freq": 5,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:45:37.384246",
+      "last_seen": "2026-10-05 08:45:37.384246"
+    },
+    "detected_at": "2026-10-06T03:18:13.025087"
+  },
+  {
+    "timestamp": "2026-10-05T08:45:50.967213",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.47",
+    "dest_ip": "150.113.76.145",
+    "description": "Traffic deviates from baseline: packet_length=9,161 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0384,
+      "top_feature": "packet_length",
+      "top_feature_value": 9161,
+      "top_feature_robust_z": 7.58,
+      "max_packet_length": 9161,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        80
+      ],
+      "first_seen": "2026-10-05 08:45:50.967213",
+      "last_seen": "2026-10-05 08:45:50.967213"
+    },
+    "detected_at": "2026-10-06T03:18:13.025679"
+  },
+  {
+    "timestamp": "2026-10-05T08:48:00.011301",
+    "alert_type": "BRUTE_FORCE",
+    "severity": "MEDIUM",
+    "source_ip": "198.51.100.61",
+    "dest_ip": "192.168.1.25",
+    "description": "Brute force on port 3389: 25 connections in 7.6s (peak 25 in 10s, threshold >20)",
+    "details": {
+      "dst_port": 3389,
+      "connections": 25,
+      "peak_connections_in_window": 25,
+      "duration_seconds": 7.637,
+      "first_seen": "2026-10-05 08:48:00.011301",
+      "last_seen": "2026-10-05 08:48:07.647905"
+    },
+    "detected_at": "2026-10-06T03:18:12.144623"
+  },
+  {
+    "timestamp": "2026-10-05T08:48:01.602369",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "198.51.100.61",
+    "dest_ip": "192.168.1.25",
+    "description": "Traffic deviates from baseline: src_conn_freq=25 (baseline median 1); 20 anomalous record(s) [corroborates BRUTE_FORCE]",
+    "details": {
+      "anomalous_records": 20,
+      "min_anomaly_score": -0.1288,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 25,
+      "top_feature_robust_z": 24.0,
+      "max_packet_length": 180,
+      "max_src_conn_freq": 25,
+      "dst_ports": [
+        3389
+      ],
+      "first_seen": "2026-10-05 08:48:01.602369",
+      "last_seen": "2026-10-05 08:48:07.647905",
+      "corroborated_by": [
+        "BRUTE_FORCE"
+      ]
+    },
+    "detected_at": "2026-10-06T03:18:13.026263"
+  },
+  {
+    "timestamp": "2026-10-05T08:48:08.726930",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "73.240.230.66",
+    "dest_ip": "166.8.200.232",
+    "description": "Traffic deviates from baseline: packet_length=14,351 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0842,
+      "top_feature": "packet_length",
+      "top_feature_value": 14351,
+      "top_feature_robust_z": 12.07,
+      "max_packet_length": 14351,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        53
+      ],
+      "first_seen": "2026-10-05 08:48:08.726930",
+      "last_seen": "2026-10-05 08:48:08.726930"
+    },
+    "detected_at": "2026-10-06T03:18:13.026847"
+  },
+  {
+    "timestamp": "2026-10-05T08:49:24.518475",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "142.246.7.61",
+    "dest_ip": "7.73.208.235",
+    "description": "Traffic deviates from baseline: packet_length=13,522 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0815,
+      "top_feature": "packet_length",
+      "top_feature_value": 13522,
+      "top_feature_robust_z": 11.35,
+      "max_packet_length": 13522,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:49:24.518475",
+      "last_seen": "2026-10-05 08:49:24.518475"
+    },
+    "detected_at": "2026-10-06T03:18:13.027478"
+  },
+  {
+    "timestamp": "2026-10-05T08:51:04.566685",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.37",
+    "dest_ip": "141.179.49.22",
+    "description": "Traffic deviates from baseline: packet_length=15,972 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0905,
+      "top_feature": "packet_length",
+      "top_feature_value": 15972,
+      "top_feature_robust_z": 13.48,
+      "max_packet_length": 15972,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:51:04.566685",
+      "last_seen": "2026-10-05 08:51:04.566685"
+    },
+    "detected_at": "2026-10-06T03:18:13.028047"
+  },
+  {
+    "timestamp": "2026-10-05T08:51:46.483796",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "10.0.0.56",
+    "dest_ip": "205.99.141.106",
+    "description": "Traffic deviates from baseline: packet_length=11,650 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0645,
+      "top_feature": "packet_length",
+      "top_feature_value": 11650,
+      "top_feature_robust_z": 9.73,
+      "max_packet_length": 11650,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        8080
+      ],
+      "first_seen": "2026-10-05 08:51:46.483796",
+      "last_seen": "2026-10-05 08:51:46.483796"
+    },
+    "detected_at": "2026-10-06T03:18:13.028656"
+  },
+  {
+    "timestamp": "2026-10-05T08:52:43.559204",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "94.104.81.85",
+    "dest_ip": "210.234.55.252",
+    "description": "Traffic deviates from baseline: packet_length=11,564 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0645,
+      "top_feature": "packet_length",
+      "top_feature_value": 11564,
+      "top_feature_robust_z": 9.66,
+      "max_packet_length": 11564,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:52:43.559204",
+      "last_seen": "2026-10-05 08:52:43.559204"
+    },
+    "detected_at": "2026-10-06T03:18:13.029212"
+  },
+  {
+    "timestamp": "2026-10-05T08:54:19.411895",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.23",
+    "dest_ip": "207.19.194.228",
+    "description": "Traffic deviates from baseline: src_conn_freq=4 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0013,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 4,
+      "top_feature_robust_z": 3.0,
+      "max_packet_length": 1426,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:54:19.411895",
+      "last_seen": "2026-10-05 08:54:19.411895"
+    },
+    "detected_at": "2026-10-06T03:18:13.029817"
+  },
+  {
+    "timestamp": "2026-10-05T08:57:22.521458",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "94.104.81.85",
+    "dest_ip": "192.168.1.24",
+    "description": "Traffic deviates from baseline: packet_length=9,674 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.044,
+      "top_feature": "packet_length",
+      "top_feature_value": 9674,
+      "top_feature_robust_z": 8.02,
+      "max_packet_length": 9674,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:57:22.521458",
+      "last_seen": "2026-10-05 08:57:22.521458"
+    },
+    "detected_at": "2026-10-06T03:18:13.030402"
+  },
+  {
+    "timestamp": "2026-10-05T08:57:55.965761",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "136.72.95.245",
+    "dest_ip": "39.99.186.23",
+    "description": "Traffic deviates from baseline: packet_length=10,069 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0479,
+      "top_feature": "packet_length",
+      "top_feature_value": 10069,
+      "top_feature_robust_z": 8.37,
+      "max_packet_length": 10069,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:57:55.965761",
+      "last_seen": "2026-10-05 08:57:55.965761"
+    },
+    "detected_at": "2026-10-06T03:18:13.030974"
+  },
+  {
+    "timestamp": "2026-10-05T08:58:55.184823",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.26",
+    "dest_ip": "168.121.207.229",
+    "description": "Traffic deviates from baseline: src_bytes_window=4,179 (baseline median 616); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0038,
+      "top_feature": "src_bytes_window",
+      "top_feature_value": 4179,
+      "top_feature_robust_z": 2.9,
+      "max_packet_length": 1467,
+      "max_src_conn_freq": 3,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:58:55.184823",
+      "last_seen": "2026-10-05 08:58:55.184823"
+    },
+    "detected_at": "2026-10-06T03:18:13.031601"
+  },
+  {
+    "timestamp": "2026-10-05T08:59:25.490017",
+    "alert_type": "ML_ANOMALY",
+    "severity": "LOW",
+    "source_ip": "10.0.0.26",
+    "dest_ip": "103.19.195.61",
+    "description": "Traffic deviates from baseline: src_conn_freq=4 (baseline median 1); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0241,
+      "top_feature": "src_conn_freq",
+      "top_feature_value": 4,
+      "top_feature_robust_z": 3.0,
+      "max_packet_length": 285,
+      "max_src_conn_freq": 4,
+      "dst_ports": [
+        53
+      ],
+      "first_seen": "2026-10-05 08:59:25.490017",
+      "last_seen": "2026-10-05 08:59:25.490017"
+    },
+    "detected_at": "2026-10-06T03:18:13.032179"
+  },
+  {
+    "timestamp": "2026-10-05T08:59:31.316876",
+    "alert_type": "ML_ANOMALY",
+    "severity": "MEDIUM",
+    "source_ip": "218.50.178.49",
+    "dest_ip": "79.193.15.198",
+    "description": "Traffic deviates from baseline: packet_length=14,965 (baseline median 407); 1 anomalous record(s)",
+    "details": {
+      "anomalous_records": 1,
+      "min_anomaly_score": -0.0873,
+      "top_feature": "packet_length",
+      "top_feature_value": 14965,
+      "top_feature_robust_z": 12.6,
+      "max_packet_length": 14965,
+      "max_src_conn_freq": 1,
+      "dst_ports": [
+        443
+      ],
+      "first_seen": "2026-10-05 08:59:31.316876",
+      "last_seen": "2026-10-05 08:59:31.316876"
+    },
+    "detected_at": "2026-10-06T03:18:13.032774"
+  }
+]
