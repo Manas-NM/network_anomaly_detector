@@ -7,7 +7,9 @@ The dashboard renders four areas:
    protocol distribution.
 2. **Alert breakdown** - counts by severity and by detection type, with bars.
 3. **Top talkers** - most active source IPs, highlighting flagged hosts.
-4. **Recent alerts** - newest alerts with colour-coded severity.
+4. **V2 threat detections** - DNS tunneling, C2 beaconing, off-hours activity
+   and threat-intelligence feed hits, plus the feed status (new in V2).
+5. **Recent alerts** - newest alerts with colour-coded severity.
 
 Two modes are offered:
 
@@ -34,6 +36,10 @@ from alerting import Alert, AlertType, Severity
 from config import CONFIG, AppConfig
 
 _BAR_WIDTH = 24
+
+#: Alert types introduced in V2, shown in their own dashboard panel.
+V2_ALERT_TYPES = (AlertType.DNS_TUNNELING, AlertType.BEACONING,
+                  AlertType.TIME_OF_DAY_ANOMALY, AlertType.THREAT_INTEL_HIT)
 
 
 def _bar(value: int, maximum: int, style: str, width: int = _BAR_WIDTH) -> Text:
@@ -160,6 +166,30 @@ class Dashboard:
                               Text(str(n_alerts), style=style))
         return Panel(table, title="🗣️  Top Talkers", border_style="green", box=box.ROUNDED)
 
+    def v2_detections_panel(self, alerts: Sequence[Alert],
+                            intel_summary: Optional[str] = None) -> Panel:
+        """V2 detectors: one row per new alert type with its most notable alert."""
+        table = Table(box=box.SIMPLE_HEAD, expand=True)
+        table.add_column("Detector", no_wrap=True)
+        table.add_column("Alerts", justify="right")
+        table.add_column("Worst", no_wrap=True)
+        table.add_column("Top finding", ratio=1)
+        for alert_type in V2_ALERT_TYPES:
+            hits = [a for a in alerts if a.alert_type is alert_type]
+            if hits:
+                top = max(hits, key=lambda a: (a.severity.rank, a.timestamp))
+                table.add_row(alert_type.label, str(len(hits)),
+                              Text(top.severity.value, style=top.severity.color),
+                              f"{top.source_ip} → {top.dest_ip}: {top.description}")
+            else:
+                table.add_row(alert_type.label, "0", Text("-", style="dim"),
+                              Text("nothing detected", style="green"))
+        body: List[RenderableType] = [table]
+        if intel_summary:
+            body.append(Text(f"Threat intel: {intel_summary}", style="dim"))
+        return Panel(Group(*body), title="🛰️  V2 Threat Detections", border_style="magenta",
+                     box=box.ROUNDED)
+
     def recent_alerts_panel(self, alerts: Sequence[Alert]) -> Panel:
         """The newest alerts with colour-coded severity."""
         table = Table(box=box.SIMPLE_HEAD, expand=True, show_lines=False)
@@ -184,7 +214,8 @@ class Dashboard:
     # Composition
     # ------------------------------------------------------------------ #
     def build(self, df: pd.DataFrame, alerts: Sequence[Alert], title: str = "Network Anomaly Detector",
-              subtitle: str = "", parse_stats: Optional[Dict[str, int]] = None) -> RenderableType:
+              subtitle: str = "", parse_stats: Optional[Dict[str, int]] = None,
+              intel_summary: Optional[str] = None) -> RenderableType:
         """Compose all panels into one renderable."""
         header = Panel(Text.assemble((f"🛡️  {title}", "bold white"), ("\n" + subtitle, "dim") if subtitle else ""),
                        box=box.HEAVY, border_style="bright_blue")
@@ -192,13 +223,16 @@ class Dashboard:
         top.add_column(ratio=1)
         top.add_column(ratio=1)
         top.add_row(self.summary_panel(df, parse_stats), self.alert_breakdown_panel(alerts))
-        return Group(header, top, self.top_talkers_panel(df, alerts), self.recent_alerts_panel(alerts))
+        return Group(header, top, self.top_talkers_panel(df, alerts),
+                     self.v2_detections_panel(alerts, intel_summary), self.recent_alerts_panel(alerts))
 
     def render(self, df: pd.DataFrame, alerts: Sequence[Alert], source: str = "",
-               parse_stats: Optional[Dict[str, int]] = None) -> None:
+               parse_stats: Optional[Dict[str, int]] = None,
+               intel_summary: Optional[str] = None) -> None:
         """Print a static dashboard snapshot to the console."""
         subtitle = f"Source: {source}" if source else ""
-        self.console.print(self.build(df, alerts, subtitle=subtitle, parse_stats=parse_stats))
+        self.console.print(self.build(df, alerts, subtitle=subtitle, parse_stats=parse_stats,
+                                      intel_summary=intel_summary))
 
     def live_replay(self, df: pd.DataFrame, alerts: Sequence[Alert], source: str = "",
                     frames: Optional[int] = None, delay: Optional[float] = None) -> None:

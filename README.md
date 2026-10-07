@@ -9,6 +9,11 @@ levels, and a **Rich** terminal dashboard shows traffic stats and a breakdown of
 There's a built-in **mock data generator**, so you can try the whole pipeline right away\
 without capturing live traffic or needing root privileges.
 
+**Version 2.0** adds detectors for **DNS tunneling**, **C2 beaconing** and **off-hours activity**,\
+live **threat-intelligence feeds**, direct **.pcap / .pcapng** input, **streaming** for very large\
+files, a self-contained **HTML report**, a **Streamlit** web dashboard and a **pytest** test suite.\
+See [What's new in V2](#-whats-new-in-v2) and the [Changelog](#-changelog).
+
 ---
 
 ## ✨ Features
@@ -24,6 +29,40 @@ without capturing live traffic or needing root privileges.
 | **Public dataset support** | Reads **CICIDS2017**, **CSE-CIC-IDS2018** and **UNSW-NB15** CSVs directly. The format is auto-detected, columns are mapped, and protocol numbers are turned into names. You can also supply your own column mapping. See [Using External Datasets](#-using-external-datasets). |
 | **Alert logging** | One pipe-delimited line per alert in `alerts.log`, plus optional JSON export. |
 | **Rich dashboard** | Traffic summary, protocol distribution, alerts by severity and type, top talkers, and recent alerts colour-coded by severity. Optional animated **live replay**. |
+| **DNS tunneling detection** (V2) | Alerts when one source sends **more than 50 DNS queries** (port 53) within **60 s**. HIGH if the peak is above 100. |
+| **C2 beaconing detection** (V2) | Alerts when a source contacts the same host **more than 10 times** at near-regular intervals (gap spread **under 2 s**, average gap at least 5 s). HIGH if the spread is under 0.5 s over 20+ connections. |
+| **Off-hours activity** (V2) | Alerts when one source makes **more than 100 connections** outside business hours (default 22:00–06:00). HIGH above 500. |
+| **Threat-intelligence feeds** (V2) | Downloads public IP blocklists (Emerging Threats, abuse.ch Feodo Tracker), caches them for 24 h, and merges them with the static blacklist. Matches become `THREAT_INTEL_HIT` alerts. Works offline from the cache, or falls back to the static blacklist. |
+| **PCAP input** (V2) | Reads `.pcap`, `.pcapng` and `.cap` captures directly (via `dpkt`), IPv4 and IPv6, over Ethernet, Linux "cooked" capture, loopback or raw IP. Unreadable packets are skipped and counted. |
+| **Streaming mode** (V2) | `--chunk-size N` processes huge CSV files in chunks with overlapping windows, so memory use stays flat. Rule and V2 alerts match a normal run. ML alerts match for files up to 20,000 rows and can differ slightly above that. |
+| **HTML report** (V2) | One self-contained file (inline CSS and SVG charts, no internet needed): executive summary, alert timeline, protocol pie, top talkers, detection-method breakdown and the full alert table. |
+| **Streamlit web dashboard** (V2) | Upload a CSV or pcap, filter by severity / type / time / text, interactive Plotly charts, and CSV / JSON / HTML report downloads. |
+| **Test suite** (V2) | 66 pytest tests covering parsing, every detector, alerting, threat intel, PCAP, streaming and the report. Runs offline in a few seconds. |
+
+---
+
+## 🆕 What's new in V2
+
+In plain terms, V2 helps the tool catch three kinds of sneaky behaviour that V1 missed, and\
+gives you more ways to feed data in and see the results.
+
+| New in V2 | What it's for | How to use it |
+| --- | --- | --- |
+| **DNS tunneling detector** | Spots a machine hiding data inside a flood of DNS lookups | On by default |
+| **Beaconing detector** | Spots malware "phoning home" to its controller on a regular timer | On by default |
+| **Off-hours detector** | Spots a machine that is unusually busy at night | On by default |
+| **Threat-intelligence feeds** | Checks traffic against public lists of known-bad IPs, updated daily | On by default. `--update-feeds` to refresh now, `--no-threat-intel` to turn off |
+| **PCAP input** | Analyse Wireshark / tcpdump captures directly | `--input capture.pcap` |
+| **Streaming** | Analyse files too big to fit in memory | `--chunk-size 50000` |
+| **HTML report** | A shareable report you can open in any browser or e-mail | `--report` |
+| **Web dashboard** | Point-and-click dashboard with filters and charts | `--streamlit` |
+| **Test suite** | Confirms everything still works after a change | `python3 -m pytest -q` |
+
+Use `--no-v2` to turn off the three new detectors and get V1 behaviour.
+
+On the bundled sample data (`python3 main.py --generate`), V2 finds 1 DNS tunneling alert (HIGH),\
+1 beaconing alert (HIGH) and 1 off-hours alert (MEDIUM). Because the sample data is made up,\
+none of its addresses appear in the real threat feeds, so it produces no threat-intel hits.
 
 ---
 
@@ -72,6 +111,26 @@ without capturing live traffic or needing root privileges.
                  config.py  ◄── thresholds, blacklist, paths, ML params (used by all)
 ```
 
+#### V2 additions
+
+```
+  .pcap / .pcapng ──► pcap_parser.py ──┐
+  .csv ─────────────► log_parser.py ───┼──► DataFrame ──► DetectionEngine
+  huge .csv ────────► streaming.py ────┘    (chunked)       │  rules + ML (V1)
+                     (--chunk-size N)                       │  + DNSTunnelingDetector
+                                                            │  + BeaconingDetector
+  threat_intel.py ──► extra blocklist entries ──────────────┤  + TimeOfDayDetector
+  (download → cache → static fallback)                      │  + THREAT_INTEL_HIT
+                                                            ▼
+                         alerting.py ──► alerts.log / alerts.json
+                         dashboard.py ──► Rich terminal UI (with V2 panel)
+                         report_generator.py + templates/report.html ──► report.html
+                         streamlit_app.py ──► web dashboard (browser)
+```
+
+Every V2 step is optional. If a V2 module fails (for example, no internet for the feeds),\
+the run prints a warning and the V1 pipeline still completes.
+
 ---
 
 ## 📁 Project Structure
@@ -87,6 +146,14 @@ network_anomaly_detector/
 ├── alerting.py            # Alert model, severity levels, alerts.log writer
 ├── dashboard.py           # Rich terminal dashboard (static + live replay)
 ├── main.py                # CLI orchestrating the whole pipeline
+├── threat_intel.py        # (V2) Threat-feed download, caching and parsing
+├── pcap_parser.py         # (V2) .pcap / .pcapng → DataFrame
+├── streaming.py           # (V2) Chunked processing for very large CSV files
+├── report_generator.py    # (V2) Self-contained HTML report
+├── streamlit_app.py       # (V2) Streamlit web dashboard
+├── templates/
+│   └── report.html        # (V2) Jinja2 template for the HTML report
+├── tests/                 # (V2) pytest suite (conftest.py + 7 test modules)
 └── data/                  # Generated / input log files
     └── .gitkeep
 ```
@@ -176,12 +243,42 @@ python3 main.py --input data/Tuesday-WorkingHours.pcap_ISCX.csv --dashboard
 python3 main.py --input data/UNSW-NB15_1.csv --profile unsw
 ```
 
+### V2 commands
+
+> Shown with `python3` (macOS/Linux). On **Windows**, replace `python3` with `python`.
+
+```bash
+# 9) Analyse a packet capture directly (.pcap / .pcapng / .cap)
+python3 main.py --input capture.pcap --dashboard
+
+# 10) Write a self-contained HTML report (default: data/report.html)
+python3 main.py --report
+python3 main.py --report reports/october.html
+
+# 11) Stream a very large CSV in chunks of 50,000 rows (flat memory use)
+python3 main.py --input data/huge.csv --chunk-size 50000
+
+# 12) Refresh the threat-intelligence feeds now (otherwise refreshed every 24 h)
+python3 main.py --update-feeds
+
+# 13) Work fully offline: static blacklist only, no feed download
+python3 main.py --no-threat-intel
+
+# 14) V1 behaviour only (no DNS / beaconing / off-hours detectors)
+python3 main.py --no-v2
+
+# 15) Open the Streamlit web dashboard in your browser
+python3 main.py --streamlit
+# (same as: streamlit run streamlit_app.py)
+```
+
 ### CLI reference (`python3 main.py --help` / `python main.py --help`)
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `-i, --input PATH` | CSV log file to analyse | `data/network_logs.csv` |
-| `-p, --profile NAME` | Input format: `auto`, `cicids`, `unsw` or `default` (native) | `auto` |
+| `--version` | Print the version (`2.0.0`) and exit | – |
+| `-i, --input PATH` | CSV log file or `.pcap` / `.pcapng` capture to analyse | `data/network_logs.csv` |
+| `-p, --profile NAME` | Input format: `auto`, `cicids`, `unsw` or `default` (native). Ignored for pcap files | `auto` |
 | `-g, --generate` | Generate synthetic logs to `--input` first | off |
 | `--rows N` / `--seed N` | Size / seed of the generated data | `10000` / `1337` |
 | `-d, --dashboard` | Show the Rich dashboard | off |
@@ -193,6 +290,12 @@ python3 main.py --input data/UNSW-NB15_1.csv --profile unsw
 | `--contamination F` | Expected anomaly ratio (0 < F ≤ 0.5) | `0.03` |
 | `--min-severity` | Minimum severity in the console list | `LOW` |
 | `-q, --quiet` | Don't print the alert list | off |
+| `--report [PATH]` | (V2) Write a self-contained HTML report | off (`data/report.html` if no path) |
+| `--chunk-size N` | (V2) Stream CSV input in chunks of N rows | off |
+| `--no-v2` | (V2) Disable the DNS tunneling, beaconing and off-hours detectors | off |
+| `--update-feeds` | (V2) Force a fresh download of the threat-intelligence feeds | off |
+| `--no-threat-intel` | (V2) Don't load threat feeds (static blacklist only) | off |
+| `--streamlit` | (V2) Launch the Streamlit web dashboard instead of the CLI pipeline | off |
 
 Exit codes: `0` success, `1` input/parse error, `2` invalid arguments.
 
@@ -218,6 +321,10 @@ Timestamp,Source IP,Destination IP,Source Port,Destination Port,Protocol,Packet 
 * **Packet Length**: 1–65535 bytes.
 
 Headers are matched case-insensitively. Snake_case headers (`timestamp, src_ip, …`) also work.
+
+**Packet captures (V2):** `.pcap`, `.pcapng` and `.cap` files don't need any conversion.\
+Each TCP, UDP or ICMP packet becomes one row with the same seven columns. Packets that\
+aren't IP (ARP, for example) or can't be decoded are skipped and counted in the summary.
 
 ---
 
@@ -348,7 +455,8 @@ works exactly as before. Pass `"auto"` to turn on detection.
   use them yourself to check the alerts afterwards.
 
 * **Memory.** Single CICIDS / UNSW files hold hundreds of thousands to millions of rows, and\
-  the parser loads the whole file into memory. Start with one day's file.
+  the parser loads the whole file into memory. Start with one day's file, or use\
+  `--chunk-size` (V2) to stream it in pieces.
 
 * Rows with `Infinity` / `NaN` in _unused_ columns (common in CICIDS) are fine. Only the 7 mapped\
   columns are checked.
@@ -379,8 +487,13 @@ Example:
 | `BRUTE_FORCE` | – | more than 20 connections in 10 s | in-window peak of 40 or more |
 | `BLACKLISTED_IP` | – | inbound from a bad host | outbound to a bad host |
 | `ML_ANOMALY` | score > −0.05 | −0.15 < score ≤ −0.05 | score ≤ −0.15 |
+| `DNS_TUNNELING` (V2) | – | more than 50 DNS queries in 60 s | in-window peak above 100 |
+| `BEACONING` (V2) | – | more than 10 regular connections (gap spread < 2 s) | spread < 0.5 s and 20+ connections |
+| `TIME_OF_DAY_ANOMALY` (V2) | – | more than 100 off-hours connections | more than 500 |
+| `THREAT_INTEL_HIT` (V2) | – | inbound from a feed-listed host | outbound to a feed-listed host |
 
-All thresholds can be changed in `config.py`.
+All thresholds can be changed in `config.py` (`RuleConfig`, `MLConfig`, and for V2 `DNSConfig`,\
+`BeaconingConfig`, `TimeOfDayConfig` and `ThreatFeedConfig`).
 
 ---
 
@@ -389,7 +502,9 @@ All thresholds can be changed in `config.py`.
 ### `config.py`
 
 Frozen dataclasses (`PathConfig`, `SchemaConfig`, `RuleConfig`, `MLConfig`,\
-`DashboardConfig`, `GeneratorConfig`) grouped into one `AppConfig` instance called `CONFIG`.\
+`DashboardConfig`, `GeneratorConfig`, and in V2 `DNSConfig`, `BeaconingConfig`, `TimeOfDayConfig`,\
+`ThreatFeedConfig`, `PcapConfig`, `StreamingConfig`, `ReportConfig`) grouped into one `AppConfig`\
+instance called `CONFIG`. `__version__` holds the version number (`2.0.0`).\
 The dataset-ingestion settings live in this file too:
 
 * `COLUMN_MAPPING`: presets `cicids`, `unsw` and `custom`
@@ -425,6 +540,12 @@ cfg = replace(CONFIG, rules=replace(CONFIG.rules, port_scan_unique_ports=5))
 | Jumbo packets (> 9000 B) | 25 | ML_ANOMALY |
 | HTTPS exfiltration burst | 120 | ML_ANOMALY only (no rule covers it) |
 | Malformed rows | 7 | Rejected by the parser |
+| DNS tunneling (\~130 queries in \~55 s) (V2) | \~130 | DNS_TUNNELING HIGH |
+| C2 beaconing (every 30 s ± 0.2 s, 40 conns) (V2) | 40 | BEACONING HIGH |
+| Off-hours burst (\~150 conns, 04:30–05:30) (V2) | \~150 | TIME_OF_DAY_ANOMALY MEDIUM |
+
+The V2 scenarios use their own random stream, so for a given seed the V1 scenarios are\
+generated exactly as before.
 
 ### `log_parser.py`
 
@@ -459,8 +580,17 @@ pandas checks. It returns a `ParseResult` with:
   `anomaly_score` and `is_anomaly`) and `detect()`, which groups anomalous records into\
   per src→dst alerts with an explanation.
 
+* **`DNSTunnelingDetector`** (V2): sliding window over DNS queries per source.
+
+* **`BeaconingDetector`** (V2): measures the gaps between connections for each src→dst pair\
+  and flags timer-like regularity.
+
+* **`TimeOfDayDetector`** (V2): counts each source's connections outside business hours.
+
 * **`DetectionEngine`**: runs both detectors, tags ML alerts that corroborate a rule,\
-  records timings and warnings, and returns a `DetectionResult`.
+  records timings and warnings, and returns a `DetectionResult`. In V2 it also runs the\
+  three new detectors (`run_v2_detectors()`). Each one is isolated, so an error there\
+  becomes a warning and never affects the V1 results.
 
 ### `alerting.py`
 
@@ -478,7 +608,43 @@ time slices inside `rich.live.Live`.
 
 ### `main.py`
 
-The argparse CLI that runs the pipeline: generate → parse → detect → log → display.
+The argparse CLI that runs the pipeline: generate → parse → detect → log → display.\
+In V2 it also picks the PCAP or streaming path, loads threat intel, writes the HTML\
+report and can launch the Streamlit app. Each V2 step is wrapped so that a failure\
+becomes a warning instead of stopping the run.
+
+### `threat_intel.py` (V2)
+
+`ThreatIntelManager.load()` gets each feed in this order: fresh download → cached copy\
+(`data/threat_feeds/`) → nothing (static blacklist only). `parse_feed()` accepts one IP or\
+CIDR per line and ignores comments and junk lines. The entries are handed to\
+`RuleBasedDetector.add_threat_intel()`.
+
+### `pcap_parser.py` (V2)
+
+`PcapParser(config).parse(path)` reads pcap and pcapng files with `dpkt` and returns the\
+same `ParseResult` as `log_parser.py`, so the rest of the pipeline doesn't care where the\
+data came from. `is_pcap_file()` recognises captures by extension or by their magic bytes.
+
+### `streaming.py` (V2)
+
+`StreamingProcessor` reads a CSV in chunks. Port-scan, brute-force and DNS rules run on\
+each chunk plus an overlap from the previous one, so attacks that cross a chunk boundary\
+are still caught. Blacklist/threat-intel, beaconing and off-hours detection collect a small\
+summary of every chunk and run once at the end, so they match a normal run. The ML model is\
+trained on the first 20,000 rows (`StreamingConfig.ml_warmup_rows`) and later chunks are only\
+scored, so on files bigger than that its results can differ slightly from a normal run.\
+`deduplicate_alerts()` removes the repeats caused by the overlap.
+
+### `report_generator.py` + `templates/report.html` (V2)
+
+`HTMLReportGenerator().write(path, df, alerts, source=...)` renders the Jinja2 template.\
+All charts are inline SVG built in Python, so the report opens offline and can be e-mailed.
+
+### `streamlit_app.py` (V2)
+
+Browser dashboard built on the same modules. It reads data, but never touches the\
+CLI's `alerts.log`.
 
 ---
 
@@ -513,8 +679,93 @@ Expect some false positives like these from any unsupervised model.
 * **New ML feature**: compute it in `MLAnomalyDetector.build_features()` and add its name\
   to `MLConfig.feature_columns`.
 
-* **Live capture**: convert packets (from scapy, tshark or Zeek) into the same CSV/DataFrame\
-  schema and pass them to `DetectionEngine.run()`.
+* **Live capture**: save packets to a `.pcap` (e.g. with tcpdump or Wireshark) and pass it with\
+  `--input`, or convert them (from scapy, tshark or Zeek) into the same CSV/DataFrame schema\
+  and pass them to `DetectionEngine.run()`.
+
+* **New V2-style detector**: add a class with a `detect(df) -> List[Alert]` method in\
+  `detection_engine.py`, a config dataclass in `config.py`, and call it from\
+  `DetectionEngine.run_v2_detectors()`. Add a test in `tests/test_detection.py`.
+
+* **More threat feeds**: add `(name, URL)` pairs to `ThreatFeedConfig.feed_urls`, or local\
+  files to `ThreatFeedConfig.local_feed_files`.
+
+---
+
+## ✅ Running Tests
+
+The `tests/` folder holds a **pytest** suite (66 tests). It uses small, made-up data written\
+inside the tests, needs no internet, and finishes in a few seconds.
+
+**macOS / Linux**
+
+```bash
+python3 -m pytest -q
+```
+
+**Windows**
+
+```cmd
+python -m pytest -q
+```
+
+| File | What it checks |
+| --- | --- |
+| `tests/test_parser.py` | CSV parsing, validation, rejected rows, dataset profiles |
+| `tests/test_detection.py` | Port scan, brute force, blacklist, ML, DNS tunneling, beaconing, off-hours, correlation |
+| `tests/test_alerting.py` | Alert log format, filtering, counts, JSON export |
+| `tests/test_threat_intel.py` | Feed parsing, caching, offline fallback (network calls are faked) |
+| `tests/test_pcap.py` | pcap and pcapng parsing, skipped packets (skipped if `dpkt` isn't installed) |
+| `tests/test_streaming.py` | Chunked results match a normal run, de-duplication across chunk overlaps |
+| `tests/test_report.py` | HTML report renders, is self-contained, and escapes untrusted text |
+
+---
+
+## 📜 Changelog
+
+### 2.0.0
+
+**Added**
+
+* `DNSTunnelingDetector`, `BeaconingDetector` and `TimeOfDayDetector`, with new alert types\
+  `DNS_TUNNELING`, `BEACONING` and `TIME_OF_DAY_ANOMALY`.
+
+* `threat_intel.py`: downloads Emerging Threats and abuse.ch Feodo Tracker blocklists, caches them\
+  for 24 h, falls back to the cache or the static blacklist. New alert type `THREAT_INTEL_HIT`.
+
+* `pcap_parser.py`: `.pcap` / `.pcapng` / `.cap` input.
+
+* `streaming.py`: chunked processing with overlapping windows and alert de-duplication.
+
+* `report_generator.py` + `templates/report.html`: self-contained HTML report.
+
+* `streamlit_app.py`: web dashboard.
+
+* `tests/`: 66 pytest tests.
+
+* CLI flags `--version`, `--report`, `--chunk-size`, `--no-v2`, `--update-feeds`,\
+  `--no-threat-intel` and `--streamlit`.
+
+* Three new mock-data scenarios (DNS tunneling, beaconing, off-hours).
+
+* A V2 panel on the Rich dashboard.
+
+* New config sections `DNSConfig`, `BeaconingConfig`, `TimeOfDayConfig`, `ThreatFeedConfig`,\
+  `PcapConfig`, `StreamingConfig` and `ReportConfig`.
+
+* New dependencies: `dpkt`, `requests`, `jinja2`, `streamlit`, `plotly`, `pytest`.
+
+**Unchanged**
+
+* All V1 commands, alert formats and thresholds work as before. For a given `--seed`, the V1\
+  mock-data scenarios are generated exactly as in 1.x.
+
+* V2 features are optional. If one fails, the run shows a warning and the V1 pipeline still finishes.
+
+### 1.x
+
+* Rule-based detection (port scan, brute force, blacklist), Isolation Forest ML detection,\
+  public dataset support (CICIDS2017, CSE-CIC-IDS2018, UNSW-NB15), alert logging and the Rich dashboard.
 
 ---
 

@@ -18,8 +18,18 @@ Classes
     connection-frequency features. It flags records that deviate from the
     learned traffic baseline (e.g. jumbo packets, sudden volume bursts).
 
+V2 detectors
+    * :class:`DNSTunnelingDetector` - an unusually high DNS query rate from
+      one host (data exfiltration / C2 over DNS).
+    * :class:`BeaconingDetector` - connections between a src->dst pair at a
+      suspiciously regular interval (malware calling home).
+    * :class:`TimeOfDayDetector` - heavy activity from one host outside
+      business hours.
+    * Threat-intel hits - :class:`RuleBasedDetector` accepts extra blacklist
+      entries from :mod:`threat_intel` feeds.
+
 :class:`DetectionEngine`
-    Runs both detectors, cross-references their findings and returns a
+    Runs all detectors, cross-references their findings and returns a
     single, chronologically ordered :class:`DetectionResult`.
 
 Each record in the log is treated as one connection / flow event.
@@ -31,14 +41,15 @@ import ipaddress
 import time
 from collections import Counter
 from dataclasses import dataclass, field, replace
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
 from alerting import Alert, AlertType, Severity
-from config import CONFIG, AppConfig, MLConfig, RuleConfig
+from config import (CONFIG, AppConfig, BeaconingConfig, DNSConfig, MLConfig, RuleConfig,
+                    TimeOfDayConfig)
 
 _NS_PER_SECOND = 1_000_000_000
 
@@ -129,12 +140,66 @@ class RuleBasedDetector:
 
     Args:
         config: Application configuration (``config.rules`` is used).
+        extra_blacklist: Optional V2 threat-intel entries (IP or CIDR -> feed
+            name), e.g. from :meth:`threat_intel.ThreatIntelManager.load`.
+            Matches that are *not* on the static blacklist are reported as
+            ``THREAT_INTEL_HIT``; static matches stay ``BLACKLISTED_IP``.
     """
 
-    def __init__(self, config: AppConfig = CONFIG) -> None:
+    def __init__(self, config: AppConfig = CONFIG,
+                 extra_blacklist: Optional[Mapping[str, str]] = None) -> None:
         self.rules: RuleConfig = config.rules
         self._blacklist = [ipaddress.ip_network(e, strict=False) for e in self.rules.blacklisted_ips]
         self._blacklist_cache: Dict[str, bool] = {}
+        # V2 threat intel: exact hosts in a dict (O(1) lookup), CIDR blocks in a list.
+        self._intel_hosts: Dict[str, str] = {}
+        self._intel_nets: List[Tuple[ipaddress._BaseNetwork, str]] = []
+        self._intel_cache: Dict[str, Optional[str]] = {}
+        if extra_blacklist:
+            self.add_threat_intel(extra_blacklist)
+
+    # ------------------------------------------------------------------ #
+    # V2: threat-intel blacklist extension
+    # ------------------------------------------------------------------ #
+    def add_threat_intel(self, entries: Mapping[str, str]) -> int:
+        """Extend the blacklist with ``{ip_or_cidr: feed_name}`` entries.
+
+        Invalid entries are ignored. Returns the number of entries accepted.
+        """
+        accepted = 0
+        for entry, source in entries.items():
+            try:
+                net = ipaddress.ip_network(str(entry).strip(), strict=False)
+            except ValueError:
+                continue
+            if net.num_addresses == 1:
+                self._intel_hosts[str(net.network_address)] = str(source)
+            else:
+                self._intel_nets.append((net, str(source)))
+            accepted += 1
+        self._intel_cache.clear()
+        return accepted
+
+    @property
+    def threat_intel_size(self) -> int:
+        """Number of threat-intel entries loaded."""
+        return len(self._intel_hosts) + len(self._intel_nets)
+
+    def intel_source(self, ip: str) -> Optional[str]:
+        """Return the feed name listing ``ip``, or None (cached)."""
+        if not self._intel_hosts and not self._intel_nets:
+            return None
+        if ip in self._intel_cache:
+            return self._intel_cache[ip]
+        source = self._intel_hosts.get(ip)
+        if source is None and self._intel_nets:
+            try:
+                addr = ipaddress.ip_address(ip)
+                source = next((src for net, src in self._intel_nets if addr in net), None)
+            except ValueError:
+                source = None
+        self._intel_cache[ip] = source
+        return source
 
     # ------------------------------------------------------------------ #
     def detect(self, df: pd.DataFrame) -> List[Alert]:
@@ -254,11 +319,15 @@ class RuleBasedDetector:
         * Outbound traffic *to* a blacklisted host suggests a compromised
           internal machine (e.g. C2 beaconing) -> HIGH.
         * Inbound traffic *from* a blacklisted host -> MEDIUM.
+
+        V2: hosts found only in threat-intel feeds (see :meth:`add_threat_intel`)
+        produce ``THREAT_INTEL_HIT`` alerts with the same severity logic.
         """
-        if not self._blacklist:
+        if not self._blacklist and not self.threat_intel_size:
             return []
         unique_ips = pd.unique(pd.concat([df["src_ip"], df["dst_ip"]]))
-        bad_ips = {ip for ip in unique_ips if self.is_blacklisted(str(ip))}
+        bad_ips = {ip for ip in unique_ips
+                   if self.is_blacklisted(str(ip)) or self.intel_source(str(ip)) is not None}
         if not bad_ips:
             return []
 
@@ -280,24 +349,35 @@ class RuleBasedDetector:
             src, dst = (peer_label, bad_ip) if outbound else (bad_ip, peer_label)
             direction = "Outbound connections to" if outbound else "Inbound traffic from"
             ports = sorted(int(p) for p in group["dst_port"].unique())
+            details = {
+                "blacklisted_ip": str(bad_ip),
+                "direction": "outbound" if outbound else "inbound",
+                "events": int(len(group)),
+                "peers": peers[:20],
+                "total_bytes": int(group["packet_length"].sum()),
+                "dst_ports": ports,
+                "first_seen": str(group["timestamp"].iloc[0]),
+                "last_seen": str(group["timestamp"].iloc[-1]),
+            }
+            if self.is_blacklisted(str(bad_ip)):
+                alert_type = AlertType.BLACKLISTED_IP
+                description = (f"{direction} blacklisted host {bad_ip}: {len(group)} events, "
+                               f"{len(peers)} internal peer(s), dst ports {ports[:5]}")
+            else:
+                feed = self.intel_source(str(bad_ip)) or "threat feed"
+                alert_type = AlertType.THREAT_INTEL_HIT
+                description = (f"{direction} host {bad_ip} listed in threat feed '{feed}': "
+                               f"{len(group)} events, {len(peers)} internal peer(s), "
+                               f"dst ports {ports[:5]}")
+                details["threat_feed"] = feed
             alerts.append(Alert(
                 timestamp=group["timestamp"].iloc[0].to_pydatetime(),
-                alert_type=AlertType.BLACKLISTED_IP,
+                alert_type=alert_type,
                 severity=Severity.HIGH if outbound else Severity.MEDIUM,
                 source_ip=str(src),
                 dest_ip=str(dst),
-                description=(f"{direction} blacklisted host {bad_ip}: {len(group)} events, "
-                             f"{len(peers)} internal peer(s), dst ports {ports[:5]}"),
-                details={
-                    "blacklisted_ip": str(bad_ip),
-                    "direction": "outbound" if outbound else "inbound",
-                    "events": int(len(group)),
-                    "peers": peers[:20],
-                    "total_bytes": int(group["packet_length"].sum()),
-                    "dst_ports": ports,
-                    "first_seen": str(group["timestamp"].iloc[0]),
-                    "last_seen": str(group["timestamp"].iloc[-1]),
-                },
+                description=description,
+                details=details,
             ))
         return alerts
 
@@ -478,6 +558,229 @@ class MLAnomalyDetector:
 
 
 # --------------------------------------------------------------------------- #
+# V2: DNS tunneling detection
+# --------------------------------------------------------------------------- #
+def _peer_label(values: pd.Series) -> Tuple[str, List[str]]:
+    """Return ``(label, sorted unique values)``; label is the single value or "N hosts"."""
+    peers = sorted(str(v) for v in values.unique())
+    return (peers[0] if len(peers) == 1 else f"{len(peers)} hosts"), peers
+
+
+class DNSTunnelingDetector:
+    """Flag sources sending an abnormal number of DNS queries in a short window.
+
+    A source triggers when it sends MORE than ``query_threshold`` queries to
+    port 53 within ``window_seconds`` (MEDIUM); a peak above
+    ``high_severity_queries`` escalates to HIGH.
+
+    Args:
+        config: Application configuration (``config.dns`` is used).
+    """
+
+    def __init__(self, config: AppConfig = CONFIG) -> None:
+        self.dns: DNSConfig = config.dns
+
+    def detect(self, df: pd.DataFrame) -> List[Alert]:
+        """Return one alert per incident (merged violating windows) per source."""
+        c = self.dns
+        if df.empty:
+            return []
+        data = df[df["dst_port"].isin(c.dns_ports)]
+        sizes = data.groupby("src_ip", observed=True).size()
+        suspects = sizes[sizes > c.query_threshold].index
+        if suspects.empty:
+            return []
+        data = data[data["src_ip"].isin(suspects)]
+
+        alerts: List[Alert] = []
+        for src, group in data.groupby("src_ip", sort=False, observed=True):
+            group = group.sort_values("timestamp", kind="mergesort")
+            times = group["timestamp"].to_numpy(dtype="datetime64[ns]").astype(np.int64)
+            for inc in sliding_window_incidents(times, times, c.window_seconds,
+                                                c.query_threshold, count_unique=False):
+                window = group.iloc[inc.start_idx: inc.end_idx + 1]
+                duration = (window["timestamp"].iloc[-1] - window["timestamp"].iloc[0]).total_seconds()
+                dst_label, resolvers = _peer_label(window["dst_ip"])
+                severity = Severity.HIGH if inc.peak > c.high_severity_queries else Severity.MEDIUM
+                alerts.append(Alert(
+                    timestamp=window["timestamp"].iloc[0].to_pydatetime(),
+                    alert_type=AlertType.DNS_TUNNELING,
+                    severity=severity,
+                    source_ip=str(src),
+                    dest_ip=dst_label,
+                    description=(f"Possible DNS tunneling: {len(window)} DNS queries in "
+                                 f"{duration:.1f}s (peak {inc.peak} in {c.window_seconds:g}s, "
+                                 f"threshold >{c.query_threshold})"),
+                    details={
+                        "queries": int(len(window)),
+                        "peak_queries_in_window": int(inc.peak),
+                        "duration_seconds": round(duration, 3),
+                        "resolvers": resolvers[:20],
+                        "avg_query_bytes": round(float(window["packet_length"].mean()), 1),
+                        "total_bytes": int(window["packet_length"].sum()),
+                        "first_seen": str(window["timestamp"].iloc[0]),
+                        "last_seen": str(window["timestamp"].iloc[-1]),
+                    },
+                ))
+        return alerts
+
+
+# --------------------------------------------------------------------------- #
+# V2: Beaconing detection
+# --------------------------------------------------------------------------- #
+class BeaconingDetector:
+    """Flag src->dst pairs that connect at a suspiciously regular interval.
+
+    For every pair with more than ``min_connections`` connections the
+    inter-arrival times are computed (gaps shorter than ``session_gap_seconds``
+    are collapsed so a multi-packet session counts once). The pair is flagged
+    when the standard deviation of the intervals is below
+    ``max_interval_std_seconds`` and the mean interval is at least
+    ``min_mean_interval_seconds`` (which excludes floods and scans).
+
+    Args:
+        config: Application configuration (``config.beaconing`` is used).
+    """
+
+    def __init__(self, config: AppConfig = CONFIG) -> None:
+        self.cfg: BeaconingConfig = config.beaconing
+
+    def _connection_times(self, times_ns: np.ndarray) -> np.ndarray:
+        """Collapse events closer than ``session_gap_seconds`` into one connection."""
+        if len(times_ns) < 2:
+            return times_ns
+        gap_ns = self.cfg.session_gap_seconds * _NS_PER_SECOND
+        keep = np.concatenate(([True], np.diff(times_ns) >= gap_ns))
+        return times_ns[keep]
+
+    def analyse_pair(self, times_ns: np.ndarray) -> Optional[Dict[str, float]]:
+        """Return interval statistics if ``times_ns`` (sorted) looks like a beacon."""
+        c = self.cfg
+        conn = self._connection_times(times_ns)
+        if len(conn) <= c.min_connections:
+            return None
+        intervals = np.diff(conn) / _NS_PER_SECOND
+        mean, std = float(intervals.mean()), float(intervals.std())
+        if mean < c.min_mean_interval_seconds or std >= c.max_interval_std_seconds:
+            return None
+        return {"connections": int(len(conn)), "mean_interval": mean, "std_interval": std,
+                "min_interval": float(intervals.min()), "max_interval": float(intervals.max())}
+
+    def detect(self, df: pd.DataFrame) -> List[Alert]:
+        """Return one alert per beaconing src->dst pair."""
+        c = self.cfg
+        if df.empty:
+            return []
+        sizes = df.groupby(["src_ip", "dst_ip"], observed=True).size()
+        suspects = sizes[sizes > c.min_connections].index
+        if suspects.empty:
+            return []
+        candidate = df.set_index(["src_ip", "dst_ip"]).loc[suspects].reset_index()
+
+        alerts: List[Alert] = []
+        for (src, dst), group in candidate.groupby(["src_ip", "dst_ip"], sort=False, observed=True):
+            group = group.sort_values("timestamp", kind="mergesort")
+            times = group["timestamp"].to_numpy(dtype="datetime64[ns]").astype(np.int64)
+            stats = self.analyse_pair(times)
+            if stats is None:
+                continue
+            high = (stats["std_interval"] < c.high_severity_std_seconds
+                    and stats["connections"] >= c.high_severity_min_connections)
+            ports = sorted(int(p) for p in group["dst_port"].unique())
+            alerts.append(Alert(
+                timestamp=group["timestamp"].iloc[0].to_pydatetime(),
+                alert_type=AlertType.BEACONING,
+                severity=Severity.HIGH if high else Severity.MEDIUM,
+                source_ip=str(src),
+                dest_ip=str(dst),
+                description=(f"Possible C2 beaconing: {stats['connections']} connections every "
+                             f"{stats['mean_interval']:.1f}s (std {stats['std_interval']:.2f}s, "
+                             f"threshold <{c.max_interval_std_seconds:g}s), dst ports {ports[:5]}"),
+                details={
+                    "connections": stats["connections"],
+                    "mean_interval_seconds": round(stats["mean_interval"], 3),
+                    "std_interval_seconds": round(stats["std_interval"], 3),
+                    "min_interval_seconds": round(stats["min_interval"], 3),
+                    "max_interval_seconds": round(stats["max_interval"], 3),
+                    "dst_ports": ports[:10],
+                    "first_seen": str(group["timestamp"].iloc[0]),
+                    "last_seen": str(group["timestamp"].iloc[-1]),
+                },
+            ))
+        return alerts
+
+
+# --------------------------------------------------------------------------- #
+# V2: Time-of-day anomaly detection
+# --------------------------------------------------------------------------- #
+class TimeOfDayDetector:
+    """Flag sources with heavy activity outside business hours.
+
+    Off-hours are every hour not in ``[business_hours_start, business_hours_end)``
+    (default 22:00-06:00; windows that wrap past midnight are supported). A
+    source with MORE than ``connection_threshold`` off-hours connections is
+    MEDIUM; more than ``high_severity_connections`` is HIGH.
+
+    Args:
+        config: Application configuration (``config.time_of_day`` is used).
+    """
+
+    def __init__(self, config: AppConfig = CONFIG) -> None:
+        self.cfg: TimeOfDayConfig = config.time_of_day
+
+    def off_hours_mask(self, timestamps: pd.Series) -> pd.Series:
+        """Boolean mask: True where the timestamp falls outside business hours."""
+        start, end = self.cfg.business_hours_start, self.cfg.business_hours_end
+        hours = timestamps.dt.hour
+        if start <= end:
+            business = (hours >= start) & (hours < end)
+        else:  # business window wraps midnight, e.g. 20:00-04:00 night shift
+            business = (hours >= start) | (hours < end)
+        return ~business
+
+    @property
+    def off_hours_label(self) -> str:
+        """Human-readable off-hours range, e.g. ``"22:00-06:00"``."""
+        return f"{self.cfg.business_hours_end % 24:02d}:00-{self.cfg.business_hours_start:02d}:00"
+
+    def detect(self, df: pd.DataFrame) -> List[Alert]:
+        """Return one alert per source exceeding the off-hours threshold."""
+        c = self.cfg
+        if df.empty:
+            return []
+        off = df[self.off_hours_mask(df["timestamp"])]
+        if off.empty:
+            return []
+        sizes = off.groupby("src_ip", observed=True).size()
+        suspects = sizes[sizes > c.connection_threshold].index
+        alerts: List[Alert] = []
+        for src in suspects:
+            group = off[off["src_ip"] == src].sort_values("timestamp", kind="mergesort")
+            count = int(len(group))
+            dst_label, dsts = _peer_label(group["dst_ip"])
+            ports = group["dst_port"].value_counts().head(5)
+            alerts.append(Alert(
+                timestamp=group["timestamp"].iloc[0].to_pydatetime(),
+                alert_type=AlertType.TIME_OF_DAY_ANOMALY,
+                severity=Severity.HIGH if count > c.high_severity_connections else Severity.MEDIUM,
+                source_ip=str(src),
+                dest_ip=dst_label,
+                description=(f"Off-hours activity: {count} connections during {self.off_hours_label} "
+                             f"to {len(dsts)} destination(s) (threshold >{c.connection_threshold})"),
+                details={
+                    "off_hours_connections": count,
+                    "off_hours_window": self.off_hours_label,
+                    "destinations": dsts[:20],
+                    "top_dst_ports": {str(int(p)): int(n) for p, n in ports.items()},
+                    "total_bytes": int(group["packet_length"].sum()),
+                    "first_seen": str(group["timestamp"].iloc[0]),
+                    "last_seen": str(group["timestamp"].iloc[-1]),
+                },
+            ))
+        return alerts
+
+
+# --------------------------------------------------------------------------- #
 # Combined engine
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -500,14 +803,59 @@ class DetectionEngine:
     a rule is annotated with ``details["corroborated_by"]`` and the
     description is suffixed accordingly, which helps analysts prioritise.
 
+    V2 detectors (DNS tunneling, beaconing, time-of-day) run after the V1
+    rules; their alerts are added to ``rule_alerts``. Each one is isolated in
+    a try/except so a failure is reported as a warning and never stops the
+    V1 pipeline.
+
     Args:
         config: Application configuration.
         enable_ml: Set False to run only the rule-based detectors.
+        enable_dns: Run :class:`DNSTunnelingDetector`.
+        enable_beaconing: Run :class:`BeaconingDetector`.
+        enable_time_of_day: Run :class:`TimeOfDayDetector`.
+        threat_intel: Optional ``{ip_or_cidr: feed_name}`` entries merged into
+            the blacklist (see :mod:`threat_intel`).
     """
 
-    def __init__(self, config: AppConfig = CONFIG, enable_ml: bool = True) -> None:
-        self.rule_detector = RuleBasedDetector(config)
+    def __init__(self, config: AppConfig = CONFIG, enable_ml: bool = True, *,
+                 enable_dns: bool = True, enable_beaconing: bool = True,
+                 enable_time_of_day: bool = True,
+                 threat_intel: Optional[Mapping[str, str]] = None) -> None:
+        self.config = config
+        self.rule_detector = RuleBasedDetector(config, extra_blacklist=threat_intel)
         self.ml_detector: Optional[MLAnomalyDetector] = MLAnomalyDetector(config) if enable_ml else None
+        self.v2_detectors: List[Tuple[str, object]] = []
+        if enable_dns:
+            self.v2_detectors.append(("dns", DNSTunnelingDetector(config)))
+        if enable_beaconing:
+            self.v2_detectors.append(("beaconing", BeaconingDetector(config)))
+        if enable_time_of_day:
+            self.v2_detectors.append(("time_of_day", TimeOfDayDetector(config)))
+
+    def run_v2_detectors(self, df: pd.DataFrame, result: Optional[DetectionResult] = None,
+                         names: Optional[Sequence[str]] = None) -> List[Alert]:
+        """Run the enabled V2 detectors on ``df`` (each failure becomes a warning).
+
+        Args:
+            df: Records to analyse (sorted by timestamp).
+            result: Optional result object receiving timings and warnings.
+            names: Restrict to these detector names (``dns``, ``beaconing``,
+                ``time_of_day``); default all enabled.
+        """
+        alerts: List[Alert] = []
+        for name, detector in self.v2_detectors:
+            if names is not None and name not in names:
+                continue
+            start = time.perf_counter()
+            try:
+                alerts.extend(detector.detect(df))  # type: ignore[attr-defined]
+            except Exception as exc:  # noqa: BLE001 - never break the V1 pipeline
+                if result is not None:
+                    result.warnings.append(f"{name} detection skipped: {exc}")
+            if result is not None:
+                result.timings[name] = time.perf_counter() - start
+        return alerts
 
     def run(self, df: pd.DataFrame) -> DetectionResult:
         """Analyse ``df`` and return a merged, chronologically sorted result."""
@@ -519,6 +867,10 @@ class DetectionEngine:
         start = time.perf_counter()
         result.rule_alerts = self.rule_detector.detect(df)
         result.timings["rules"] = time.perf_counter() - start
+
+        if self.v2_detectors:
+            ordered = df.sort_values("timestamp", kind="mergesort")
+            result.rule_alerts = result.rule_alerts + self.run_v2_detectors(ordered, result)
 
         if self.ml_detector is not None:
             start = time.perf_counter()

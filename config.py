@@ -25,6 +25,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple
 
+#: Application version (semantic versioning). Shown by ``main.py --version``.
+__version__: str = "2.0.0"
+
 # --------------------------------------------------------------------------- #
 # Paths
 # --------------------------------------------------------------------------- #
@@ -425,6 +428,162 @@ class GeneratorConfig:
     malformed_rows: int = 7
     #: Start time of the generated capture (ISO format).
     start_time: str = "2026-10-05 08:00:00"
+    #: V2: also inject DNS tunneling, C2 beaconing and off-hours scenarios.
+    include_v2_scenarios: bool = True
+
+
+# --------------------------------------------------------------------------- #
+# V2: DNS tunneling detection
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class DNSConfig:
+    """Thresholds for :class:`detection_engine.DNSTunnelingDetector`.
+
+    DNS tunnelling tools (iodine, dnscat2, ...) encode data in a stream of DNS
+    queries, so an unusually high query *rate* from one host is a strong signal.
+    """
+
+    #: Destination port(s) treated as DNS.
+    dns_ports: Tuple[int, ...] = (53,)
+    #: Sliding window length in seconds.
+    window_seconds: float = 60.0
+    #: Alert (MEDIUM) when a source sends MORE than this many DNS queries in the window.
+    query_threshold: int = 50
+    #: Peak in-window query count strictly above which the alert is HIGH.
+    high_severity_queries: int = 100
+
+
+# --------------------------------------------------------------------------- #
+# V2: Beaconing detection
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class BeaconingConfig:
+    """Thresholds for :class:`detection_engine.BeaconingDetector`.
+
+    Malware "phoning home" to a command-and-control (C2) server tends to connect
+    at a fixed interval, so the *inter-arrival times* of a src->dst pair have a
+    very low standard deviation compared with human-driven traffic.
+    """
+
+    #: A pair needs MORE than this many connections to be evaluated.
+    min_connections: int = 10
+    #: Alert (MEDIUM) when the std-dev of inter-arrival times is below this (seconds).
+    max_interval_std_seconds: float = 2.0
+    #: HIGH when the std-dev is below this value ...
+    high_severity_std_seconds: float = 0.5
+    #: ... and the pair has at least this many connections.
+    high_severity_min_connections: int = 20
+    #: Ignore pairs whose mean interval is shorter than this (seconds). Bursts such
+    #: as brute force or port scans are regular too, but they are not beacons.
+    min_mean_interval_seconds: float = 5.0
+    #: Inter-arrival gaps below this (seconds) are treated as one connection
+    #: (multiple packets of the same session) and collapsed.
+    session_gap_seconds: float = 1.0
+
+
+# --------------------------------------------------------------------------- #
+# V2: Time-of-day anomaly detection
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class TimeOfDayConfig:
+    """Thresholds for :class:`detection_engine.TimeOfDayDetector`.
+
+    Business hours are ``[business_hours_start, business_hours_end)`` in the
+    capture's local clock; everything else (default 22:00-06:00) is off-hours.
+    """
+
+    #: First business hour (0-23). Default 06:00.
+    business_hours_start: int = 6
+    #: First off-hours hour (0-24). Default 22:00.
+    business_hours_end: int = 22
+    #: Alert (MEDIUM) when one source makes MORE than this many off-hours connections.
+    connection_threshold: int = 100
+    #: Off-hours connection count strictly above which the alert is HIGH.
+    high_severity_connections: int = 500
+
+
+# --------------------------------------------------------------------------- #
+# V2: Threat intelligence feeds
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class ThreatFeedConfig:
+    """Remote IP blocklists merged with ``RuleConfig.blacklisted_ips``.
+
+    Fallback order when loading: fresh download -> cached copy -> static
+    blacklist only. A cached copy younger than ``cache_ttl_hours`` is used
+    without contacting the network (unless ``--update-feeds`` is given).
+    """
+
+    #: ``(feed name, URL)`` pairs. Each feed is a plain-text list, one IP/CIDR per line.
+    feed_urls: Tuple[Tuple[str, str], ...] = (
+        ("emerging_threats_compromised",
+         "https://rules.emergingthreats.net/blockrules/compromised-ips.txt"),
+        ("abuse_ch_feodo_tracker",
+         "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"),
+    )
+    #: Directory where downloaded feeds are cached.
+    cache_dir: Path = DATA_DIR / "threat_feeds"
+    #: Cached feeds older than this are refreshed from the network.
+    cache_ttl_hours: float = 24.0
+    #: HTTP timeout per feed (seconds).
+    request_timeout_seconds: float = 10.0
+    #: Optional local blocklist files (same format) merged in as extra feeds.
+    local_feed_files: Tuple[Path, ...] = ()
+    #: Set False to skip threat intel entirely (static blacklist only).
+    enabled: bool = True
+
+
+# --------------------------------------------------------------------------- #
+# V2: PCAP input
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class PcapConfig:
+    """Settings for :class:`pcap_parser.PcapParser`."""
+
+    #: File extensions routed to the PCAP parser (lower-case).
+    extensions: Tuple[str, ...] = (".pcap", ".pcapng", ".cap")
+    #: Stop after this many packets (None = read everything).
+    max_packets: Optional[int] = None
+    #: Maximum number of skipped-packet samples kept for reporting.
+    max_error_samples: int = 1000
+
+
+# --------------------------------------------------------------------------- #
+# V2: Streaming / chunked processing
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class StreamingConfig:
+    """Settings for :class:`streaming.StreamingProcessor`."""
+
+    #: Rows read and analysed per chunk.
+    chunk_size: int = 5_000
+    #: Rows from the end of the previous chunk carried into the next one so that
+    #: attacks spanning a chunk boundary are still seen in a single window.
+    overlap_rows: int = 2_000
+    #: Records collected before the ML baseline is trained (later chunks are only
+    #: scored). Training on a single small chunk would make the model too noisy.
+    ml_warmup_rows: int = 20_000
+
+
+# --------------------------------------------------------------------------- #
+# V2: HTML report
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class ReportConfig:
+    """Settings for :class:`report_generator.HTMLReportGenerator`."""
+
+    #: Default output path for ``--report``.
+    output_path: Path = DATA_DIR / "report.html"
+    #: Directory holding the Jinja2 template.
+    template_dir: Path = BASE_DIR / "templates"
+    #: Template file name inside ``template_dir``.
+    template_name: str = "report.html"
+    #: Number of entries shown in "top N" charts.
+    top_n: int = 10
+    #: Number of buckets in the alert timeline chart.
+    timeline_buckets: int = 48
+    #: Report title.
+    title: str = "Network Log & Anomaly Detector - Security Report"
 
 
 # --------------------------------------------------------------------------- #
@@ -440,6 +599,14 @@ class AppConfig:
     ml: MLConfig = field(default_factory=MLConfig)
     dashboard: DashboardConfig = field(default_factory=DashboardConfig)
     generator: GeneratorConfig = field(default_factory=GeneratorConfig)
+    # --- V2 sections --------------------------------------------------------- #
+    dns: DNSConfig = field(default_factory=DNSConfig)
+    beaconing: BeaconingConfig = field(default_factory=BeaconingConfig)
+    time_of_day: TimeOfDayConfig = field(default_factory=TimeOfDayConfig)
+    threat_feeds: ThreatFeedConfig = field(default_factory=ThreatFeedConfig)
+    pcap: PcapConfig = field(default_factory=PcapConfig)
+    streaming: StreamingConfig = field(default_factory=StreamingConfig)
+    report: ReportConfig = field(default_factory=ReportConfig)
 
 
 #: Default, shared configuration instance.

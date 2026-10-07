@@ -19,6 +19,9 @@ Responsibilities
 The parser returns a :class:`ParseResult` containing a clean, typed
 :class:`pandas.DataFrame` (sorted by timestamp), parsing statistics and the
 dataset profile / column mapping that was applied.
+
+V2: :meth:`LogParser.iter_chunks` / :func:`iter_log_chunks` read a large file
+in fixed-size chunks for the streaming mode (``main.py --chunk-size``).
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ import ipaddress
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -266,6 +269,79 @@ class LogParser:
         )
 
     # ------------------------------------------------------------------ #
+    # V2: chunked reading (streaming mode)
+    # ------------------------------------------------------------------ #
+    def iter_chunks(self, path: Path | str, chunk_size: int = 5000) -> Iterator[ParseResult]:
+        """Parse ``path`` lazily, yielding one :class:`ParseResult` per chunk.
+
+        The same profile detection, column mapping and validation as
+        :meth:`parse` are applied, but at most ``chunk_size`` raw rows are held
+        in memory at a time. Each yielded result describes *only its chunk*
+        (``total_rows``, ``valid_rows`` and ``errors`` are per chunk; line
+        numbers refer to the whole file).
+
+        Raises:
+            LogParseError: Same conditions as :meth:`parse` (raised on the
+                first ``next()``).
+            ValueError: If ``chunk_size`` is not positive.
+        """
+        if chunk_size <= 0:
+            raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+        path = Path(path)
+        if not path.is_file():
+            raise LogParseError(f"Log file not found: {path}")
+
+        with path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+            reader = csv.reader(fh, skipinitialspace=True)
+            first = next(reader, None)
+            if not first or not any(h.strip() for h in first):
+                raise LogParseError(f"Log file is empty: {path}")
+            profile, auto, header, headerless = self._select_profile(first, path)
+            index_map, applied = self._map_columns(header, profile, path)
+            wanted = [index_map[c] for c in self.schema.internal_columns]
+            header_keys = [_normalise_name(h) for h in header]
+
+            rows: List[List[str]] = []
+            lines: List[int] = []
+            structural: List[RowError] = []
+
+            def flush() -> ParseResult:
+                raw = pd.DataFrame(rows, columns=list(self.schema.internal_columns), dtype=str)
+                raw["_line"] = lines
+                clean, row_errors = self._validate(raw, profile)
+                errors = sorted(structural + row_errors, key=lambda e: e.line_number)
+                return ParseResult(
+                    data=clean, source=path, total_rows=len(raw) + len(structural),
+                    valid_rows=len(clean), errors=errors[: self.max_error_samples],
+                    profile=profile.name, profile_description=profile.description,
+                    auto_detected=auto, headerless=headerless, column_mapping=applied,
+                )
+
+            if headerless:
+                rows.append([first[i] for i in wanted])
+                lines.append(1)
+            for row in reader:
+                if not row or not any(f.strip() for f in row):
+                    continue
+                if len(row) != len(header):
+                    structural.append(RowError(
+                        reader.line_num,
+                        f"wrong field count (expected {len(header)}, got {len(row)})",
+                        ",".join(row)[:300]))
+                elif (not headerless and _normalise_name(row[0]) == header_keys[0]
+                        and [_normalise_name(f) for f in row] == header_keys):
+                    structural.append(RowError(reader.line_num, "repeated header row",
+                                               ",".join(row)[:300]))
+                else:
+                    rows.append([row[i] for i in wanted])
+                    lines.append(reader.line_num)
+                if len(rows) + len(structural) >= chunk_size:
+                    yield flush()
+                    rows, lines, structural = [], [], []
+            if rows or structural:
+                yield flush()
+
+    # ------------------------------------------------------------------ #
     # Profile selection / column mapping
     # ------------------------------------------------------------------ #
     @staticmethod
@@ -495,6 +571,14 @@ def parse_log_file(path: Path | str, config: AppConfig = CONFIG, dataset_profile
                    column_mapping: Optional[Mapping[str, str]] = None) -> ParseResult:
     """Convenience function: parse ``path`` with a :class:`LogParser`."""
     return LogParser(config, dataset_profile=dataset_profile, column_mapping=column_mapping).parse(path)
+
+
+def iter_log_chunks(path: Path | str, chunk_size: int = 5000, config: AppConfig = CONFIG,
+                    dataset_profile: ProfileSpec = None,
+                    column_mapping: Optional[Mapping[str, str]] = None) -> Iterator[ParseResult]:
+    """Convenience function: chunked iterator over ``path`` (see :meth:`LogParser.iter_chunks`)."""
+    parser = LogParser(config, dataset_profile=dataset_profile, column_mapping=column_mapping)
+    return parser.iter_chunks(path, chunk_size)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual smoke test

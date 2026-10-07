@@ -1,7 +1,8 @@
 """
 alerting.py - Alert model, severity classification and persistent logging.
 
-* :class:`Severity` and :class:`AlertType` enumerate the possible values.
+* :class:`Severity` and :class:`AlertType` enumerate the possible values
+  (V2 adds DNS_TUNNELING, BEACONING, TIME_OF_DAY_ANOMALY and THREAT_INTEL_HIT).
 * :class:`Alert` is an immutable record describing one detected incident.
 * :class:`AlertManager` keeps an in-memory list of alerts, writes each one to
   ``alerts.log`` as a single formatted line, and offers summary helpers used
@@ -52,6 +53,33 @@ class AlertType(str, Enum):
     BRUTE_FORCE = "BRUTE_FORCE"
     BLACKLISTED_IP = "BLACKLISTED_IP"
     ML_ANOMALY = "ML_ANOMALY"
+    # --- V2 detectors ---------------------------------------------------- #
+    DNS_TUNNELING = "DNS_TUNNELING"
+    BEACONING = "BEACONING"
+    TIME_OF_DAY_ANOMALY = "TIME_OF_DAY_ANOMALY"
+    THREAT_INTEL_HIT = "THREAT_INTEL_HIT"
+
+    @property
+    def method(self) -> str:
+        """Detection family: ``"ML"`` for the Isolation Forest, ``"Rule"`` otherwise."""
+        return "ML" if self is AlertType.ML_ANOMALY else "Rule"
+
+    @property
+    def label(self) -> str:
+        """Human-friendly name, e.g. ``DNS_TUNNELING`` -> ``"DNS tunneling"``."""
+        return _ALERT_TYPE_LABELS.get(self.value, self.value.replace("_", " ").title())
+
+
+_ALERT_TYPE_LABELS: Dict[str, str] = {
+    "PORT_SCAN": "Port scan",
+    "BRUTE_FORCE": "Brute force",
+    "BLACKLISTED_IP": "Blacklisted IP",
+    "ML_ANOMALY": "ML anomaly",
+    "DNS_TUNNELING": "DNS tunneling",
+    "BEACONING": "C2 beaconing",
+    "TIME_OF_DAY_ANOMALY": "Off-hours activity",
+    "THREAT_INTEL_HIT": "Threat intel hit",
+}
 
 
 @dataclass(frozen=True)

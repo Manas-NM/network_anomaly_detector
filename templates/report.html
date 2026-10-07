@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<style>
+  :root { --high: {{ severity_hex.HIGH }}; --medium: {{ severity_hex.MEDIUM }}; --low: {{ severity_hex.LOW }};
+          --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --bg: #f8fafc; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); background: var(--bg); line-height: 1.45; }
+  header { background: #0f172a; color: #fff; padding: 28px 40px; }
+  header h1 { margin: 0 0 6px; font-size: 24px; }
+  header .meta { color: #cbd5e1; font-size: 13px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 40px 60px; }
+  h2 { font-size: 18px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .card.high { border-top: 4px solid var(--high); } .card.high .value { color: var(--high); }
+  .card.medium { border-top: 4px solid var(--medium); } .card.medium .value { color: var(--medium); }
+  .card.low { border-top: 4px solid var(--low); } .card.low .value { color: var(--low); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 18px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .panel h3 { margin: 0 0 10px; font-size: 15px; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .axis { font-size: 11px; fill: var(--muted); }
+  .chart .legend { font-size: 12px; fill: var(--ink); }
+  .mono, td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #f1f5f9; position: sticky; top: 0; cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sorted-asc::after { content: " \25B2"; } th.sorted-desc::after { content: " \25BC"; }
+  tr:hover td { background: #f8fafc; }
+  .sev { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11px; font-weight: 700; }
+  .sev.HIGH { background: var(--high); } .sev.MEDIUM { background: var(--medium); } .sev.LOW { background: var(--low); }
+  tr.HIGH td:first-child { border-left: 4px solid var(--high); }
+  tr.MEDIUM td:first-child { border-left: 4px solid var(--medium); }
+  tr.LOW td:first-child { border-left: 4px solid var(--low); }
+  .warn { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; margin-top: 14px; }
+  .kv td:first-child { color: var(--muted); width: 45%; }
+  .table-wrap { max-height: 640px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .filter { margin: 0 0 10px; padding: 7px 10px; width: 320px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 40px; }
+  @media print { th { position: static; } .table-wrap { max-height: none; overflow: visible; } .filter { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ title }}</h1>
+  <div class="meta">Generated {{ generated_at }} &middot; Source: <span class="mono">{{ source or "-" }}</span>
+    {% if summary.profile %}&middot; Format: {{ summary.profile }}{% endif %} &middot; Version {{ version }}</div>
+</header>
+<main>
+  {% if warnings %}
+  <div class="warn"><strong>Warnings during analysis:</strong>
+    <ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+  {% endif %}
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Executive summary</h2>
+  <div class="cards">
+    <div class="card"><div class="label">Records analysed</div><div class="value">{{ "{:,}".format(summary.records) }}</div></div>
+    <div class="card"><div class="label">Total alerts</div><div class="value">{{ "{:,}".format(summary.alerts) }}</div></div>
+    <div class="card high"><div class="label">High severity</div><div class="value">{{ summary.high }}</div></div>
+    <div class="card medium"><div class="label">Medium severity</div><div class="value">{{ summary.medium }}</div></div>
+    <div class="card low"><div class="label">Low severity</div><div class="value">{{ summary.low }}</div></div>
+  </div>
+
+  <div class="grid2" style="margin-top:18px">
+    <div class="panel">
+      <h3>Dataset</h3>
+      <table class="kv">
+        <tr><td>Rows read / invalid</td><td>{{ "{:,}".format(summary.total_rows) }} / {{ "{:,}".format(summary.invalid_rows) }}</td></tr>
+        <tr><td>Time range</td><td>{{ summary.first_seen }} &rarr; {{ summary.last_seen }} ({{ summary.span }})</td></tr>
+        <tr><td>Total traffic</td><td>{{ summary.total_bytes }}</td></tr>
+        <tr><td>Unique source / destination IPs</td><td>{{ summary.unique_src }} / {{ summary.unique_dst }}</td></tr>
+        <tr><td>Rule-based / ML alerts</td><td>{{ summary.rule_alerts }} / {{ summary.ml_alerts }}</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Top threats</h3>
+      {% if top_threats %}
+      <table>
+        <tr><th>Threat type</th><th>Alerts</th></tr>
+        {% for t in top_threats %}<tr><td>{{ t.label }} <span class="mono" style="color:#94a3b8">({{ t.type }})</span></td><td>{{ t.count }}</td></tr>{% endfor %}
+      </table>
+      <h3 style="margin-top:14px">Most-flagged source IPs</h3>
+      <table>
+        <tr><th>Source IP</th><th>Alerts</th></tr>
+        {% for ip, n in top_alert_sources %}<tr><td class="mono">{{ ip }}</td><td>{{ n }}</td></tr>{% endfor %}
+      </table>
+      {% else %}<p>No threats detected.</p>{% endif %}
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Alert timeline</h2>
+  <div class="panel">{{ charts.timeline | safe }}
+    <div style="font-size:12px;color:#64748b;margin-top:6px">
+      <span class="sev HIGH">HIGH</span> <span class="sev MEDIUM">MEDIUM</span> <span class="sev LOW">LOW</span>
+      &nbsp;Hover a bar for exact counts.</div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Traffic overview</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Protocol distribution (records)</h3>{{ charts.protocols | safe }}</div>
+    <div class="panel"><h3>Top talkers (bytes sent)</h3>{{ charts.talkers | safe }}</div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Detection method breakdown</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Rule-based vs machine learning</h3>{{ charts.methods | safe }}</div>
+    <div class="panel"><h3>Alerts per type</h3>{{ charts.types | safe }}</div>
+  </div>
+  {% if method_rows %}
+  <table style="margin-top:14px;border:1px solid #e2e8f0">
+    <tr><th>Alert type</th><th>Method</th><th>Total</th><th>High</th><th>Medium</th><th>Low</th></tr>
+    {% for r in method_rows %}
+    <tr><td>{{ r.label }} <span class="mono" style="color:#94a3b8">({{ r.type }})</span></td><td>{{ r.method }}</td>
+        <td>{{ r.count }}</td><td>{{ r.high }}</td><td>{{ r.medium }}</td><td>{{ r.low }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>All alerts ({{ alerts | length }})</h2>
+  {% if alerts %}
+  <input class="filter" id="filter" type="search" placeholder="Filter alerts (IP, type, text)..." aria-label="Filter alerts">
+  <div class="table-wrap">
+  <table id="alerts">
+    <thead><tr><th data-type="text">Time</th><th data-type="sev">Severity</th><th data-type="text">Type</th>
+      <th data-type="text">Method</th><th data-type="text">Source</th><th data-type="text">Destination</th>
+      <th data-type="text">Description</th></tr></thead>
+    <tbody>
+    {% for a in alerts %}
+      <tr class="{{ a.severity }}"><td class="mono">{{ a.timestamp }}</td><td><span class="sev {{ a.severity }}">{{ a.severity }}</span></td>
+        <td>{{ a.label }}</td><td>{{ a.method }}</td><td class="mono">{{ a.source }}</td><td class="mono">{{ a.dest }}</td>
+        <td>{{ a.description }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p>No alerts were raised for this dataset.</p>{% endif %}
+
+  <footer>Network Log &amp; Anomaly Detector v{{ version }} &middot; Self-contained report (no external resources)</footer>
+</main>
+<script>
+(function () {
+  var table = document.getElementById("alerts");
+  if (!table) return;
+  var rank = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  var tbody = table.tBodies[0];
+  Array.prototype.forEach.call(table.tHead.rows[0].cells, function (th, idx) {
+    th.addEventListener("click", function () {
+      var asc = !th.classList.contains("sorted-asc");
+      Array.prototype.forEach.call(th.parentNode.cells, function (c) { c.classList.remove("sorted-asc", "sorted-desc"); });
+      th.classList.add(asc ? "sorted-asc" : "sorted-desc");
+      var rows = Array.prototype.slice.call(tbody.rows);
+      rows.sort(function (a, b) {
+        var x = a.cells[idx].textContent.trim(), y = b.cells[idx].textContent.trim();
+        if (th.dataset.type === "sev") { x = rank[x] || 0; y = rank[y] || 0; }
+        return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+  document.getElementById("filter").addEventListener("input", function (e) {
+    var q = e.target.value.toLowerCase();
+    Array.prototype.forEach.call(tbody.rows, function (r) {
+      r.style.display = r.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Log &amp; Anomaly Detector - Security Report</title>
+<style>
+  :root { --high: #dc2626; --medium: #f59e0b; --low: #16a34a;
+          --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --bg: #f8fafc; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); background: var(--bg); line-height: 1.45; }
+  header { background: #0f172a; color: #fff; padding: 28px 40px; }
+  header h1 { margin: 0 0 6px; font-size: 24px; }
+  header .meta { color: #cbd5e1; font-size: 13px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 40px 60px; }
+  h2 { font-size: 18px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .card.high { border-top: 4px solid var(--high); } .card.high .value { color: var(--high); }
+  .card.medium { border-top: 4px solid var(--medium); } .card.medium .value { color: var(--medium); }
+  .card.low { border-top: 4px solid var(--low); } .card.low .value { color: var(--low); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 18px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .panel h3 { margin: 0 0 10px; font-size: 15px; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .axis { font-size: 11px; fill: var(--muted); }
+  .chart .legend { font-size: 12px; fill: var(--ink); }
+  .mono, td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #f1f5f9; position: sticky; top: 0; cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sorted-asc::after { content: " \25B2"; } th.sorted-desc::after { content: " \25BC"; }
+  tr:hover td { background: #f8fafc; }
+  .sev { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11px; font-weight: 700; }
+  .sev.HIGH { background: var(--high); } .sev.MEDIUM { background: var(--medium); } .sev.LOW { background: var(--low); }
+  tr.HIGH td:first-child { border-left: 4px solid var(--high); }
+  tr.MEDIUM td:first-child { border-left: 4px solid var(--medium); }
+  tr.LOW td:first-child { border-left: 4px solid var(--low); }
+  .warn { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; margin-top: 14px; }
+  .kv td:first-child { color: var(--muted); width: 45%; }
+  .table-wrap { max-height: 640px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .filter { margin: 0 0 10px; padding: 7px 10px; width: 320px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 40px; }
+  @media print { th { position: static; } .table-wrap { max-height: none; overflow: visible; } .filter { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Network Log &amp; Anomaly Detector - Security Report</h1>
+  <div class="meta">Generated 2026-10-07 05:36:30 &middot; Source: <span class="mono">/home/ubuntu/network_anomaly_detector/data/network_logs.csv</span>
+    &middot; Format: Native format (mock_data_generator.py) &middot; Version 2.0.0</div>
+</header>
+<main>
+  
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Executive summary</h2>
+  <div class="cards">
+    <div class="card"><div class="label">Records analysed</div><div class="value">10,000</div></div>
+    <div class="card"><div class="label">Total alerts</div><div class="value">33</div></div>
+    <div class="card high"><div class="label">High severity</div><div class="value">5</div></div>
+    <div class="card medium"><div class="label">Medium severity</div><div class="value">12</div></div>
+    <div class="card low"><div class="label">Low severity</div><div class="value">16</div></div>
+  </div>
+
+  <div class="grid2" style="margin-top:18px">
+    <div class="panel">
+      <h3>Dataset</h3>
+      <table class="kv">
+        <tr><td>Rows read / invalid</td><td>10,007 / 7</td></tr>
+        <tr><td>Time range</td><td>2026-10-05 04:31:28 &rarr; 2026-10-05 08:59:59 (4.5 h)</td></tr>
+        <tr><td>Total traffic</td><td>6.3 MB</td></tr>
+        <tr><td>Unique source / destination IPs</td><td>220 / 182</td></tr>
+        <tr><td>Rule-based / ML alerts</td><td>14 / 19</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Top threats</h3>
+      
+      <table>
+        <tr><th>Threat type</th><th>Alerts</th></tr>
+        <tr><td>ML anomaly <span class="mono" style="color:#94a3b8">(ML_ANOMALY)</span></td><td>19</td></tr><tr><td>Blacklisted IP <span class="mono" style="color:#94a3b8">(BLACKLISTED_IP)</span></td><td>7</td></tr><tr><td>Port scan <span class="mono" style="color:#94a3b8">(PORT_SCAN)</span></td><td>2</td></tr><tr><td>Brute force <span class="mono" style="color:#94a3b8">(BRUTE_FORCE)</span></td><td>2</td></tr><tr><td>Off-hours activity <span class="mono" style="color:#94a3b8">(TIME_OF_DAY_ANOMALY)</span></td><td>1</td></tr>
+      </table>
+      <h3 style="margin-top:14px">Most-flagged source IPs</h3>
+      <table>
+        <tr><th>Source IP</th><th>Alerts</th></tr>
+        <tr><td class="mono">10.0.0.37</td><td>4</td></tr><tr><td class="mono">203.0.113.45</td><td>2</td></tr><tr><td class="mono">10.0.0.44</td><td>2</td></tr><tr><td class="mono">198.51.100.23</td><td>2</td></tr><tr><td class="mono">198.51.100.61</td><td>2</td></tr>
+      </table>
+      
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Alert timeline</h2>
+  <div class="panel"><svg viewBox="0 0 960 240" class="chart" role="img" aria-label="Alert timeline"><line x1="40" y1="210.0" x2="950" y2="210.0" stroke="#e2e8f0"/><text x="34" y="214.0" text-anchor="end" class="axis">0</text><line x1="40" y1="110.0" x2="950" y2="110.0" stroke="#e2e8f0"/><text x="34" y="114.0" text-anchor="end" class="axis">4</text><line x1="40" y1="10.0" x2="950" y2="10.0" stroke="#e2e8f0"/><text x="34" y="14.0" text-anchor="end" class="axis">7</text><rect x="41.0" y="181.4" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 04:31: 1 MEDIUM</title></rect><rect x="742.5" y="181.4" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 07:58: 1 MEDIUM</title></rect><rect x="742.5" y="124.3" width="17.0" height="57.1" fill="#dc2626"><title>2026-10-05 07:58: 2 HIGH</title></rect><rect x="761.4" y="181.4" width="17.0" height="28.6" fill="#16a34a"><title>2026-10-05 08:03: 1 LOW</title></rect><rect x="761.4" y="124.3" width="17.0" height="57.1" fill="#f59e0b"><title>2026-10-05 08:03: 2 MEDIUM</title></rect><rect x="780.4" y="95.7" width="17.0" height="114.3" fill="#16a34a"><title>2026-10-05 08:09: 4 LOW</title></rect><rect x="780.4" y="38.6" width="17.0" height="57.1" fill="#f59e0b"><title>2026-10-05 08:09: 2 MEDIUM</title></rect><rect x="780.4" y="10.0" width="17.0" height="28.6" fill="#dc2626"><title>2026-10-05 08:09: 1 HIGH</title></rect><rect x="799.3" y="152.9" width="17.0" height="57.1" fill="#16a34a"><title>2026-10-05 08:14: 2 LOW</title></rect><rect x="799.3" y="124.3" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 08:14: 1 MEDIUM</title></rect><rect x="799.3" y="95.7" width="17.0" height="28.6" fill="#dc2626"><title>2026-10-05 08:14: 1 HIGH</title></rect><rect x="818.3" y="181.4" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 08:20: 1 MEDIUM</title></rect><rect x="818.3" y="152.9" width="17.0" height="28.6" fill="#dc2626"><title>2026-10-05 08:20: 1 HIGH</title></rect><rect x="856.2" y="95.7" width="17.0" height="114.3" fill="#16a34a"><title>2026-10-05 08:31: 4 LOW</title></rect><rect x="856.2" y="67.1" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 08:31: 1 MEDIUM</title></rect><rect x="875.2" y="181.4" width="17.0" height="28.6" fill="#f59e0b"><title>2026-10-05 08:37: 1 MEDIUM</title></rect><rect x="894.1" y="152.9" width="17.0" height="57.1" fill="#16a34a"><title>2026-10-05 08:42: 2 LOW</title></rect><rect x="894.1" y="95.7" width="17.0" height="57.1" fill="#f59e0b"><title>2026-10-05 08:42: 2 MEDIUM</title></rect><rect x="913.1" y="152.9" width="17.0" height="57.1" fill="#16a34a"><title>2026-10-05 08:48: 2 LOW</title></rect><rect x="932.0" y="181.4" width="17.0" height="28.6" fill="#16a34a"><title>2026-10-05 08:53: 1 LOW</title></rect><text x="40.0" y="232" text-anchor="start" class="axis">10-05 04:31:28</text><text x="495.0" y="232" text-anchor="middle" class="axis">10-05 06:45:29</text><text x="950.0" y="232" text-anchor="end" class="axis">10-05 08:59:31</text></svg>
+    <div style="font-size:12px;color:#64748b;margin-top:6px">
+      <span class="sev HIGH">HIGH</span> <span class="sev MEDIUM">MEDIUM</span> <span class="sev LOW">LOW</span>
+      &nbsp;Hover a bar for exact counts.</div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Traffic overview</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Protocol distribution (records)</h3><svg viewBox="0 0 420 220" class="chart" role="img" aria-label="Pie chart"><path d="M110.0,110.0 L110.00,10.00 A100.0,100.0 0 1 1 11.15,94.85 Z" fill="#2563eb" stroke="#fff" stroke-width="1"><title>TCP: 7,742 (77.4%)</title></path><rect x="230" y="9" width="12" height="12" fill="#2563eb"/><text x="248" y="20" class="legend">TCP (77.4%)</text><path d="M110.0,110.0 L11.15,94.85 A100.0,100.0 0 0 1 82.89,13.75 Z" fill="#7c3aed" stroke="#fff" stroke-width="1"><title>UDP: 1,821 (18.2%)</title></path><rect x="230" y="31" width="12" height="12" fill="#7c3aed"/><text x="248" y="42" class="legend">UDP (18.2%)</text><path d="M110.0,110.0 L82.89,13.75 A100.0,100.0 0 0 1 110.00,10.00 Z" fill="#0891b2" stroke="#fff" stroke-width="1"><title>ICMP: 437 (4.4%)</title></path><rect x="230" y="53" width="12" height="12" fill="#0891b2"/><text x="248" y="64" class="legend">ICMP (4.4%)</text></svg></div>
+    <div class="panel"><h3>Top talkers (bytes sent)</h3><svg viewBox="0 0 520 250" class="chart" role="img" aria-label="Bar chart"><text x="122" y="20" text-anchor="end" class="legend mono">10.0.0.37</text><rect x="130" y="8" width="300.0" height="16" rx="3" fill="#2563eb"/><text x="436.0" y="20" class="legend">254,510 B</text><text x="122" y="44" text-anchor="end" class="legend mono">10.0.0.29</text><rect x="130" y="32" width="234.2" height="16" rx="3" fill="#2563eb"/><text x="370.2" y="44" class="legend">198,709 B</text><text x="122" y="68" text-anchor="end" class="legend mono">10.0.0.44</text><rect x="130" y="56" width="133.1" height="16" rx="3" fill="#2563eb"/><text x="269.1" y="68" class="legend">112,896 B</text><text x="122" y="92" text-anchor="end" class="legend mono">10.0.0.61</text><rect x="130" y="80" width="103.6" height="16" rx="3" fill="#2563eb"/><text x="239.6" y="92" class="legend">87,885 B</text><text x="122" y="116" text-anchor="end" class="legend mono">10.0.0.27</text><rect x="130" y="104" width="102.4" height="16" rx="3" fill="#2563eb"/><text x="238.4" y="116" class="legend">86,835 B</text><text x="122" y="140" text-anchor="end" class="legend mono">10.0.0.47</text><rect x="130" y="128" width="101.2" height="16" rx="3" fill="#2563eb"/><text x="237.2" y="140" class="legend">85,866 B</text><text x="122" y="164" text-anchor="end" class="legend mono">10.0.0.33</text><rect x="130" y="152" width="100.3" height="16" rx="3" fill="#2563eb"/><text x="236.3" y="164" class="legend">85,055 B</text><text x="122" y="188" text-anchor="end" class="legend mono">10.0.0.36</text><rect x="130" y="176" width="99.6" height="16" rx="3" fill="#2563eb"/><text x="235.6" y="188" class="legend">84,481 B</text><text x="122" y="212" text-anchor="end" class="legend mono">10.0.0.59</text><rect x="130" y="200" width="97.4" height="16" rx="3" fill="#2563eb"/><text x="233.4" y="212" class="legend">82,610 B</text><text x="122" y="236" text-anchor="end" class="legend mono">10.0.0.9</text><rect x="130" y="224" width="97.3" height="16" rx="3" fill="#2563eb"/><text x="233.3" y="236" class="legend">82,516 B</text></svg></div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>Detection method breakdown</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Rule-based vs machine learning</h3><svg viewBox="0 0 420 220" class="chart" role="img" aria-label="Pie chart"><path d="M110.0,110.0 L110.00,10.00 A100.0,100.0 0 0 1 155.82,198.88 Z" fill="#2563eb" stroke="#fff" stroke-width="1"><title>Rule-based: 14 (42.4%)</title></path><rect x="230" y="9" width="12" height="12" fill="#2563eb"/><text x="248" y="20" class="legend">Rule-based (42.4%)</text><path d="M110.0,110.0 L155.82,198.88 A100.0,100.0 0 1 1 110.00,10.00 Z" fill="#7c3aed" stroke="#fff" stroke-width="1"><title>Machine learning: 19 (57.6%)</title></path><rect x="230" y="31" width="12" height="12" fill="#7c3aed"/><text x="248" y="42" class="legend">Machine learning (57.6%)</text></svg></div>
+    <div class="panel"><h3>Alerts per type</h3><svg viewBox="0 0 520 178" class="chart" role="img" aria-label="Bar chart"><text x="122" y="20" text-anchor="end" class="legend mono">ML anomaly</text><rect x="130" y="8" width="300.0" height="16" rx="3" fill="#7c3aed"/><text x="436.0" y="20" class="legend">19</text><text x="122" y="44" text-anchor="end" class="legend mono">Blacklisted IP</text><rect x="130" y="32" width="110.5" height="16" rx="3" fill="#7c3aed"/><text x="246.5" y="44" class="legend">7</text><text x="122" y="68" text-anchor="end" class="legend mono">Port scan</text><rect x="130" y="56" width="31.6" height="16" rx="3" fill="#7c3aed"/><text x="167.6" y="68" class="legend">2</text><text x="122" y="92" text-anchor="end" class="legend mono">Brute force</text><rect x="130" y="80" width="31.6" height="16" rx="3" fill="#7c3aed"/><text x="167.6" y="92" class="legend">2</text><text x="122" y="116" text-anchor="end" class="legend mono">Off-hours activity</text><rect x="130" y="104" width="15.8" height="16" rx="3" fill="#7c3aed"/><text x="151.8" y="116" class="legend">1</text><text x="122" y="140" text-anchor="end" class="legend mono">C2 beaconing</text><rect x="130" y="128" width="15.8" height="16" rx="3" fill="#7c3aed"/><text x="151.8" y="140" class="legend">1</text><text x="122" y="164" text-anchor="end" class="legend mono">DNS tunneling</text><rect x="130" y="152" width="15.8" height="16" rx="3" fill="#7c3aed"/><text x="151.8" y="164" class="legend">1</text></svg></div>
+  </div>
+  
+  <table style="margin-top:14px;border:1px solid #e2e8f0">
+    <tr><th>Alert type</th><th>Method</th><th>Total</th><th>High</th><th>Medium</th><th>Low</th></tr>
+    
+    <tr><td>Port scan <span class="mono" style="color:#94a3b8">(PORT_SCAN)</span></td><td>Rule</td>
+        <td>2</td><td>1</td><td>1</td><td>0</td></tr>
+    
+    <tr><td>Brute force <span class="mono" style="color:#94a3b8">(BRUTE_FORCE)</span></td><td>Rule</td>
+        <td>2</td><td>1</td><td>1</td><td>0</td></tr>
+    
+    <tr><td>Blacklisted IP <span class="mono" style="color:#94a3b8">(BLACKLISTED_IP)</span></td><td>Rule</td>
+        <td>7</td><td>1</td><td>6</td><td>0</td></tr>
+    
+    <tr><td>ML anomaly <span class="mono" style="color:#94a3b8">(ML_ANOMALY)</span></td><td>ML</td>
+        <td>19</td><td>0</td><td>3</td><td>16</td></tr>
+    
+    <tr><td>DNS tunneling <span class="mono" style="color:#94a3b8">(DNS_TUNNELING)</span></td><td>Rule</td>
+        <td>1</td><td>1</td><td>0</td><td>0</td></tr>
+    
+    <tr><td>C2 beaconing <span class="mono" style="color:#94a3b8">(BEACONING)</span></td><td>Rule</td>
+        <td>1</td><td>1</td><td>0</td><td>0</td></tr>
+    
+    <tr><td>Off-hours activity <span class="mono" style="color:#94a3b8">(TIME_OF_DAY_ANOMALY)</span></td><td>Rule</td>
+        <td>1</td><td>0</td><td>1</td><td>0</td></tr>
+    
+  </table>
+  
+
+  <!-- ------------------------------------------------------------------ -->
+  <h2>All alerts (33)</h2>
+  
+  <input class="filter" id="filter" type="search" placeholder="Filter alerts (IP, type, text)..." aria-label="Filter alerts">
+  <div class="table-wrap">
+  <table id="alerts">
+    <thead><tr><th data-type="text">Time</th><th data-type="sev">Severity</th><th data-type="text">Type</th>
+      <th data-type="text">Method</th><th data-type="text">Source</th><th data-type="text">Destination</th>
+      <th data-type="text">Description</th></tr></thead>
+    <tbody>
+    
+      <tr class="HIGH"><td class="mono">2026-10-05 08:00:03</td><td><span class="sev HIGH">HIGH</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">10.0.0.18</td><td class="mono">192.0.2.99</td>
+        <td>Outbound connections to blacklisted host 192.0.2.99: 20 events, 1 internal peer(s), dst ports [4444]</td></tr>
+    
+      <tr class="HIGH"><td class="mono">2026-10-05 08:02:59</td><td><span class="sev HIGH">HIGH</span></td>
+        <td>C2 beaconing</td><td>Rule</td><td class="mono">10.0.0.51</td><td class="mono">203.0.113.150</td>
+        <td>Possible C2 beaconing: 40 connections every 30.0s (std 0.18s, threshold &lt;2s), dst ports [443]</td></tr>
+    
+      <tr class="HIGH"><td class="mono">2026-10-05 08:12:00</td><td><span class="sev HIGH">HIGH</span></td>
+        <td>Port scan</td><td>Rule</td><td class="mono">203.0.113.45</td><td class="mono">192.168.1.10</td>
+        <td>Port scan: 64 unique ports probed in 3.0s (threshold &gt;10 in 5s)</td></tr>
+    
+      <tr class="HIGH"><td class="mono">2026-10-05 08:18:00</td><td><span class="sev HIGH">HIGH</span></td>
+        <td>DNS tunneling</td><td>Rule</td><td class="mono">10.0.0.44</td><td class="mono">2 hosts</td>
+        <td>Possible DNS tunneling: 131 DNS queries in 67.1s (peak 130 in 60s, threshold &gt;50)</td></tr>
+    
+      <tr class="HIGH"><td class="mono">2026-10-05 08:24:00</td><td><span class="sev HIGH">HIGH</span></td>
+        <td>Brute force</td><td>Rule</td><td class="mono">198.51.100.23</td><td class="mono">192.168.1.20</td>
+        <td>Brute force on port 22: 60 connections in 14.7s (peak 41 in 10s, threshold &gt;20)</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 04:31:28</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Off-hours activity</td><td>Rule</td><td class="mono">10.0.0.29</td><td class="mono">28 hosts</td>
+        <td>Off-hours activity: 150 connections during 22:00-06:00 to 28 destination(s) (threshold &gt;100)</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:01:26</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">198.51.100.129</td><td class="mono">4 hosts</td>
+        <td>Inbound traffic from blacklisted host 198.51.100.129: 4 events, 4 internal peer(s), dst ports [22, 443, 8080]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:04:06</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">192.0.2.66</td><td class="mono">5 hosts</td>
+        <td>Inbound traffic from blacklisted host 192.0.2.66: 5 events, 5 internal peer(s), dst ports [22, 443, 8080]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:08:57</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">198.51.100.131</td><td class="mono">4 hosts</td>
+        <td>Inbound traffic from blacklisted host 198.51.100.131: 4 events, 4 internal peer(s), dst ports [80, 443, 8080]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:10:10</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">192.0.2.99</td><td class="mono">9 hosts</td>
+        <td>Inbound traffic from blacklisted host 192.0.2.99: 10 events, 9 internal peer(s), dst ports [22, 443, 8080]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:12:01</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">203.0.113.45</td><td class="mono">192.168.1.10</td>
+        <td>Traffic deviates from baseline: src_conn_freq=64 (baseline median 1); 40 anomalous record(s) [corroborates PORT_SCAN]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:15:23</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">203.0.113.200</td><td class="mono">4 hosts</td>
+        <td>Inbound traffic from blacklisted host 203.0.113.200: 4 events, 4 internal peer(s), dst ports [22, 80, 8080]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:24:05</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">198.51.100.23</td><td class="mono">192.168.1.20</td>
+        <td>Traffic deviates from baseline: src_conn_freq=41 (baseline median 1); 38 anomalous record(s) [corroborates BRUTE_FORCE]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:33:00</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.37</td><td class="mono">93.184.216.200</td>
+        <td>Traffic deviates from baseline: src_bytes_window=89,803 (baseline median 650); 115 anomalous record(s)</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:39:00</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Port scan</td><td>Rule</td><td class="mono">203.0.113.77</td><td class="mono">192.168.1.12</td>
+        <td>Port scan: 14 unique ports probed in 3.7s (threshold &gt;10 in 5s)</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:45:08</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Blacklisted IP</td><td>Rule</td><td class="mono">198.51.100.130</td><td class="mono">3 hosts</td>
+        <td>Inbound traffic from blacklisted host 198.51.100.130: 3 events, 3 internal peer(s), dst ports [80]</td></tr>
+    
+      <tr class="MEDIUM"><td class="mono">2026-10-05 08:48:00</td><td><span class="sev MEDIUM">MEDIUM</span></td>
+        <td>Brute force</td><td>Rule</td><td class="mono">198.51.100.61</td><td class="mono">192.168.1.25</td>
+        <td>Brute force on port 3389: 25 connections in 7.6s (peak 25 in 10s, threshold &gt;20)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:05:07</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">168.121.207.229</td><td class="mono">19.126.44.200</td>
+        <td>Traffic deviates from baseline: packet_length=14,108 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:12:07</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.12</td><td class="mono">182.186.177.205</td>
+        <td>Traffic deviates from baseline: packet_length=14,645 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:13:59</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">4.48.240.77</td><td class="mono">192.168.1.2</td>
+        <td>Traffic deviates from baseline: packet_length=12,917 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:14:40</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.42</td><td class="mono">166.8.200.232</td>
+        <td>Traffic deviates from baseline: packet_length=15,505 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:14:44</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">65.199.193.89</td><td class="mono">192.168.1.24</td>
+        <td>Traffic deviates from baseline: packet_length=14,708 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:16:18</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.21</td><td class="mono">192.168.1.20</td>
+        <td>Traffic deviates from baseline: packet_length=14,169 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:18:05</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.44</td><td class="mono">192.168.1.53</td>
+        <td>Traffic deviates from baseline: src_conn_freq=19 (baseline median 1); 89 anomalous record(s) [corroborates DNS_TUNNELING]</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:33:03</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.37</td><td class="mono">44.212.231.171</td>
+        <td>Traffic deviates from baseline: src_bytes_window=28,679 (baseline median 650); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:33:26</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.37</td><td class="mono">13.233.65.204</td>
+        <td>Traffic deviates from baseline: src_bytes_window=26,121 (baseline median 650); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:35:06</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.35</td><td class="mono">192.168.1.26</td>
+        <td>Traffic deviates from baseline: packet_length=13,232 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:36:43</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">174.228.39.145</td><td class="mono">86.49.174.109</td>
+        <td>Traffic deviates from baseline: packet_length=12,587 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:48:05</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">198.51.100.61</td><td class="mono">192.168.1.25</td>
+        <td>Traffic deviates from baseline: src_conn_freq=25 (baseline median 1); 4 anomalous record(s) [corroborates BRUTE_FORCE]</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:48:08</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">73.240.230.66</td><td class="mono">166.8.200.232</td>
+        <td>Traffic deviates from baseline: packet_length=14,351 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:49:24</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">142.246.7.61</td><td class="mono">7.73.208.235</td>
+        <td>Traffic deviates from baseline: packet_length=13,522 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:51:04</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">10.0.0.37</td><td class="mono">141.179.49.22</td>
+        <td>Traffic deviates from baseline: packet_length=15,972 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+      <tr class="LOW"><td class="mono">2026-10-05 08:59:31</td><td><span class="sev LOW">LOW</span></td>
+        <td>ML anomaly</td><td>ML</td><td class="mono">218.50.178.49</td><td class="mono">79.193.15.198</td>
+        <td>Traffic deviates from baseline: packet_length=14,965 (baseline median 403); 1 anomalous record(s)</td></tr>
+    
+    </tbody>
+  </table>
+  </div>
+  
+
+  <footer>Network Log &amp; Anomaly Detector v2.0.0 &middot; Self-contained report (no external resources)</footer>
+</main>
+<script>
+(function () {
+  var table = document.getElementById("alerts");
+  if (!table) return;
+  var rank = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  var tbody = table.tBodies[0];
+  Array.prototype.forEach.call(table.tHead.rows[0].cells, function (th, idx) {
+    th.addEventListener("click", function () {
+      var asc = !th.classList.contains("sorted-asc");
+      Array.prototype.forEach.call(th.parentNode.cells, function (c) { c.classList.remove("sorted-asc", "sorted-desc"); });
+      th.classList.add(asc ? "sorted-asc" : "sorted-desc");
+      var rows = Array.prototype.slice.call(tbody.rows);
+      rows.sort(function (a, b) {
+        var x = a.cells[idx].textContent.trim(), y = b.cells[idx].textContent.trim();
+        if (th.dataset.type === "sev") { x = rank[x] || 0; y = rank[y] || 0; }
+        return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+  document.getElementById("filter").addEventListener("input", function (e) {
+    var q = e.target.value.toLowerCase();
+    Array.prototype.forEach.call(tbody.rows, function (r) {
+      r.style.display = r.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+    });
+  });
+})();
+</script>
+</body>
+</html>

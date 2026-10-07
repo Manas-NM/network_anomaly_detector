@@ -25,7 +25,16 @@ Jumbo packets          Packets with abnormal sizes (> 9000 bytes).
 Exfiltration burst     An internal host pushing many large packets to an
                        external server in a short burst (ML-only finding).
 Malformed rows         A handful of broken lines to exercise the parser.
+DNS tunneling (V2)     One internal host firing ~130 UDP/53 queries with
+                       large payloads at a resolver in ~55 s (HIGH).
+C2 beaconing (V2)      An internal host calling an external server every
+                       30 s (+/- 0.2 s jitter) - 40 connections (HIGH).
+Off-hours (V2)         ~150 connections from one internal host between 04:30
+                       and 05:30, before business hours start (MEDIUM).
 =====================  ======================================================
+
+The V2 scenarios use their own random stream, so for a given seed the V1
+scenarios are generated exactly as before.
 
 Usage::
 
@@ -40,7 +49,7 @@ import csv
 import ipaddress
 import random
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
@@ -63,6 +72,12 @@ RDP_BRUTE_ATTACKER = "198.51.100.61"
 RDP_BRUTE_TARGET = "192.168.1.25"
 EXFIL_SOURCE = "10.0.0.37"
 EXFIL_DESTINATION = "93.184.216.200"
+# V2 scenarios
+DNS_TUNNEL_SOURCE = "10.0.0.44"
+DNS_TUNNEL_RESOLVER = "192.168.1.53"
+BEACON_SOURCE = "10.0.0.51"
+BEACON_C2_SERVER = "203.0.113.150"  # documentation range, deliberately NOT blacklisted
+OFF_HOURS_SOURCE = "10.0.0.29"
 
 #: Weighted service catalogue for normal traffic: (dst_port, protocol, weight).
 NORMAL_SERVICES: Sequence[tuple] = (
@@ -96,7 +111,10 @@ class MockDataGenerator:
 
     def __init__(self, config: AppConfig = CONFIG, seed: Optional[int] = None) -> None:
         self.config = config
-        self.rng = random.Random(config.generator.random_seed if seed is None else seed)
+        base_seed = config.generator.random_seed if seed is None else seed
+        self.rng = random.Random(base_seed)
+        # Separate stream for V2 scenarios keeps V1 output reproducible.
+        self.v2_rng = random.Random(base_seed + 2)
         self.start_time = datetime.fromisoformat(config.generator.start_time)
         self.duration = config.generator.duration_seconds
 
@@ -254,6 +272,40 @@ class MockDataGenerator:
             for i in range(count)
         ]
 
+    # -- V2 scenarios ---------------------------------------------------- #
+    def generate_dns_tunneling(self, queries: int, start: float, span: float) -> List[Record]:
+        """Burst of DNS queries with large payloads (data smuggled in sub-domains)."""
+        rng = self.v2_rng
+        return [
+            self._record(self._ts(start + span * i / queries + rng.uniform(0, 0.2)),
+                         DNS_TUNNEL_SOURCE, DNS_TUNNEL_RESOLVER, rng.randint(49152, 65535),
+                         53, "UDP", rng.randint(180, 480))
+            for i in range(queries)
+        ]
+
+    def generate_beaconing(self, connections: int, interval: float, start: float) -> List[Record]:
+        """Malware 'phoning home' on a near-perfect timer (tiny jitter)."""
+        rng = self.v2_rng
+        return [
+            self._record(self._ts(start + i * interval + rng.uniform(-0.2, 0.2)), BEACON_SOURCE,
+                         BEACON_C2_SERVER, rng.randint(49152, 65535), 443, "TCP",
+                         rng.randint(150, 260))
+            for i in range(connections)
+        ]
+
+    def generate_off_hours(self, count: int) -> List[Record]:
+        """Connections from one host between 04:30 and 05:30 on the capture day."""
+        rng = self.v2_rng
+        window_start = datetime.combine(self.start_time.date(), time(4, 30))
+        records: List[Record] = []
+        for _ in range(count):
+            ts = window_start + timedelta(seconds=rng.uniform(0, 3600))
+            dst = rng.choice(self.internal_servers)
+            dport = rng.choice([445, 139, 22, 3306, 5432])
+            records.append(self._record(ts, OFF_HOURS_SOURCE, dst, rng.randint(49152, 65535),
+                                        dport, "TCP", rng.randint(64, 1500)))
+        return records
+
     def malformed_lines(self, count: int) -> List[List[str]]:
         """Broken CSV rows: bad IPs, bad ports, unknown protocols, missing fields."""
         templates = [
@@ -295,6 +347,12 @@ class MockDataGenerator:
             "jumbo_packets": self.generate_jumbo_packets(25),
             "exfiltration_burst": self.generate_exfiltration_burst(120, start=d * 0.55, span=20.0),
         }
+        if self.config.generator.include_v2_scenarios:
+            anomalies.update({
+                "dns_tunneling": self.generate_dns_tunneling(130, start=d * 0.30, span=55.0),
+                "c2_beaconing": self.generate_beaconing(40, interval=30.0, start=d * 0.05),
+                "off_hours": self.generate_off_hours(150),
+            })
         anomaly_counts = {name: len(rows) for name, rows in anomalies.items()}
         normal_count = max(total - sum(anomaly_counts.values()), 0)
 
