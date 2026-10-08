@@ -152,6 +152,9 @@ class AlertManager:
         logger = logging.getLogger(f"{self._LOGGER_NAME}.{id(self)}")
         logger.setLevel(logging.INFO)
         logger.propagate = False
+        for old in list(logger.handlers):  # id() can be reused: drop stale handlers
+            old.close()
+            logger.removeHandler(old)
         handler = logging.FileHandler(self.log_path, mode="w" if overwrite else "a", encoding="utf-8")
         # The alert line already contains the event timestamp and severity;
         # prefix only the detection time for auditability.

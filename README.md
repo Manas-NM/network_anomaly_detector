@@ -774,3 +774,11 @@ python -m pytest -q
 This is an educational / demo tool. The blacklist uses RFC 5737 documentation ranges\
 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`), so no real host is implicated.\
 Only analyse traffic you are authorised to monitor.
+## v2.0.1 bug fixes
+
+- **log_parser**: timestamps with mixed UTC offsets (e.g. across a DST change) crashed parsing (`.dt` on object dtype); now normalised to UTC. CSV files starting with a UTF-8 BOM are read with `utf-8-sig`.
+- **threat_intel**: a cache-write failure no longer throws away a successful download; an unreadable fresh cache falls back to the network; `0.0.0.0/0` / `::/0` feed entries are ignored.
+- **detection_engine**: any unexpected ML exception is recorded as a warning instead of crashing the pipeline.
+- **streamlit_app**: uploaded files are rewritten only when their content changes, so the analysis cache is no longer invalidated on every widget click.
+- **alerting**: stale log handlers are removed when a logger name (based on `id()`) is reused.
+- New regression tests: `tests/test_bugfixes.py`.

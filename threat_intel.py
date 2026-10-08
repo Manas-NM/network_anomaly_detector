@@ -72,9 +72,12 @@ def parse_feed(text: str) -> List[str]:
             continue
         token = line.replace(",", " ").replace("\t", " ").split()[0]
         try:
-            entries.append(str(ipaddress.ip_network(token, strict=False)))
+            net = ipaddress.ip_network(token, strict=False)
         except ValueError:
             continue
+        if net.prefixlen == 0:  # 0.0.0.0/0 or ::/0 would blacklist the whole Internet
+            continue
+        entries.append(str(net))
     return entries
 
 
@@ -124,17 +127,24 @@ class ThreatIntelManager:
         path = self.cache_path(name)
         age = self._cache_age_hours(path)
         if not force_update and age is not None and age < self.cfg.cache_ttl_hours:
-            entries = parse_feed(path.read_text(encoding="utf-8", errors="replace"))
-            self.status.append(FeedStatus(name, "cache", len(entries), round(age, 2)))
-            return entries
+            try:
+                entries = parse_feed(path.read_text(encoding="utf-8", errors="replace"))
+                self.status.append(FeedStatus(name, "cache", len(entries), round(age, 2)))
+                return entries
+            except OSError as exc:  # unreadable cache -> try the network instead
+                logger.warning("Could not read cached feed %s: %s", name, exc)
+                age = None
 
         try:
             text = self.fetcher(url, self.cfg.request_timeout_seconds)
             entries = parse_feed(text)
             if not entries:
                 raise ValueError("feed contained no valid IP entries")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
+            try:  # a cache-write failure must not discard freshly downloaded data
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            except OSError as exc:
+                logger.warning("Could not cache threat feed %s: %s", name, exc)
             self.status.append(FeedStatus(name, "network", len(entries)))
             logger.info("Downloaded threat feed %s (%d entries)", name, len(entries))
             return entries

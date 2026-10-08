@@ -878,6 +878,8 @@ class DetectionEngine:
                 result.ml_alerts, result.ml_scores = self.ml_detector.detect(df)
             except ValueError as exc:  # e.g. not enough samples
                 result.warnings.append(f"ML detection skipped: {exc}")
+            except Exception as exc:  # noqa: BLE001 - never let the ML step crash the pipeline
+                result.warnings.append(f"ML detection failed: {type(exc).__name__}: {exc}")
             result.timings["ml"] = time.perf_counter() - start
 
         result.ml_alerts = self._corroborate(result.ml_alerts, result.rule_alerts)

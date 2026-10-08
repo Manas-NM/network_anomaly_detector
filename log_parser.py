@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import ipaddress
 import logging
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple, Union
@@ -213,7 +214,7 @@ class LogParser:
 
         # The csv module gives exact control over malformed lines: rows with
         # the wrong number of fields are recorded and skipped, never truncated.
-        with path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+        with path.open("r", newline="", encoding="utf-8-sig", errors="replace") as fh:
             reader = csv.reader(fh, skipinitialspace=True)
             first = next(reader, None)
             if not first or not any(h.strip() for h in first):
@@ -291,7 +292,7 @@ class LogParser:
         if not path.is_file():
             raise LogParseError(f"Log file not found: {path}")
 
-        with path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+        with path.open("r", newline="", encoding="utf-8-sig", errors="replace") as fh:
             reader = csv.reader(fh, skipinitialspace=True)
             first = next(reader, None)
             if not first or not any(h.strip() for h in first):
@@ -458,7 +459,17 @@ class LogParser:
             parts.append(pd.to_datetime(seconds, unit="s", errors="coerce"))
         text = values[~is_epoch]
         if not text.empty:
-            parsed = pd.to_datetime(text, errors="coerce", format="mixed", dayfirst=dayfirst)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                try:
+                    parsed = pd.to_datetime(text, errors="coerce", format="mixed", dayfirst=dayfirst)
+                except (ValueError, TypeError):
+                    parsed = None
+            if parsed is None or not pd.api.types.is_datetime64_any_dtype(parsed):
+                # Mixed UTC offsets (e.g. across a DST change) give an object Series
+                # without a .dt accessor; normalise everything to UTC instead.
+                parsed = pd.to_datetime(text, errors="coerce", format="mixed",
+                                        dayfirst=dayfirst, utc=True)
             if getattr(parsed.dt, "tz", None) is not None:  # keep everything tz-naive
                 parsed = parsed.dt.tz_convert(None)
             parts.append(parsed)

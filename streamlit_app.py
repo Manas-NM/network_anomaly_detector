@@ -107,7 +107,11 @@ def sidebar_source() -> Tuple[str, str, bool, bool, bool]:
     if uploaded is not None:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         target = UPLOAD_DIR / Path(uploaded.name).name
-        target.write_bytes(uploaded.getbuffer())
+        data = bytes(uploaded.getbuffer())
+        # Rewrite only when the content changed: rewriting bumps the mtime, which
+        # busts the analysis cache and re-runs everything on every widget click.
+        if not target.is_file() or target.stat().st_size != len(data) or target.read_bytes() != data:
+            target.write_bytes(data)
         path = str(target)
     profile = st.sidebar.selectbox("Dataset format", list(PROFILE_CHOICES), index=0,
                                    help="'auto' detects native, CICIDS and UNSW-NB15 CSVs.")
